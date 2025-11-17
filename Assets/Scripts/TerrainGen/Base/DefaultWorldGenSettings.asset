@@ -1,0 +1,79 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8966f21604af54641a5c7c053dd8148b, type: 3}
+  m_Name: DefaultWorldGenSettings
+  m_EditorClassIdentifier: Assembly-CSharp::WorldGenSettings
+  noiseScales:
+  - 2
+  - 4
+  - 8
+  - 16
+  - 32
+  heightAmplitudes:
+  - 3
+  - 1.5
+  - 0.5
+  - 0.2
+  - 0.1
+  grassLayerIndex: 0
+  rockLayerIndex: 1
+  slopeThreshold: 20
+  townCount: 4
+  buildingsPerTown: 20
+  townRadius: 25
+  townBuildings:
+  - {fileID: 4006380948555916207, guid: 5588a8d412fbde7438ca753802ff5fd7, type: 3}
+  - {fileID: 94773008580130292, guid: 141dfc83d2b169048b1c7be34b4f80c6, type: 3}
+  - {fileID: 8890544191658653547, guid: 95e1103e1b178a5469625f52620552d1, type: 3}
+  - {fileID: 4050965772583975450, guid: a3a8b00e8d41854449cce210a12ba1c0, type: 3}
+  - {fileID: 4650455608004783518, guid: 9540973e7448d9e4ea4b597bb9087a0f, type: 3}
+  - {fileID: 7673577656621484426, guid: c29d23f7fbf445940bc2b802cfa0ed70, type: 3}
+  - {fileID: 1848146998117132793, guid: 191e4e43e155c9b4a9b7a2e69d703d2c, type: 3}
+  - {fileID: 7426361400934075745, guid: ef121bc57f5cbff4a9a01fce8bacd59c, type: 3}
+  - {fileID: 7126581493255341010, guid: 95fd3d7ed3288464c87a83353af8d5f0, type: 3}
+  - {fileID: 3618475849501982110, guid: ea0f2283b80611c4bb16cf8167408d64, type: 3}
+  - {fileID: 9031128181555918723, guid: eb7e39a99a8f60e4fb8882aeea815558, type: 3}
+  - {fileID: 3966549168656399073, guid: 92c66d1956b1d524a9595f1a5fd5a9d1, type: 3}
+  - {fileID: 6585128901058472604, guid: 3caafabe57db0424bb6b033fad926edf, type: 3}
+  - {fileID: 1252334008173490430, guid: b1959923fd076e34ab95cd4ed6e9deb3, type: 3}
+  - {fileID: 6095772257549534313, guid: 83e4be6d1195cf24281bb7ac2c68469e, type: 3}
+  - {fileID: 6299169255958933540, guid: 22826a998c7d776428af8de1150ffeac, type: 3}
+  - {fileID: 1702141791350022116, guid: 00d13c3029e5e024995bbe92d044962b, type: 3}
+  - {fileID: 9071898041365640540, guid: 24832f8c21ee5a945bf0d7552cab41f6, type: 3}
+  - {fileID: 4400378073300624996, guid: 47f7bd449c7235344bc3f50e9edd1435, type: 3}
+  - {fileID: 349910888072992289, guid: 2677a829686d0e146b5425eb4c0cb24f, type: 3}
+  propCount: 0
+  propNoiseScales:
+  - 2
+  propAmplitudes:
+  - 4
+  props:
+  - {fileID: 5611079599847659240, guid: ce1130ae64139c749a6ff0eda077b571, type: 3}
+  - {fileID: 4252242335877347180, guid: c211e9f26ba93fb4e9162bc3646d0f42, type: 3}
+  - {fileID: 6230735891030678370, guid: af7167f6c867f0b4f84bddf0d4855c77, type: 3}
+  - {fileID: 8446186560348952521, guid: 31044d8d5e970484e8f6c69e8a27ca28, type: 3}
+  - {fileID: 888059846372915067, guid: 40e9d926dcaccc04692efd2a37acc646, type: 3}
+  - {fileID: 136195284699459447, guid: 49b9bcafa5c1c604c9fceebe6db20336, type: 3}
+  - {fileID: 1672192438965420614, guid: 290b36ca07fda104db5947a162795a2d, type: 3}
+  - {fileID: 2956483722911539320, guid: 9a9be2c5ee8115d4f8d2408a3629aa8f, type: 3}
+  - {fileID: 1131076836554562213, guid: 95f4c7a1ead9792448458e75a38bb672, type: 3}
+  - {fileID: 1224381193425312181, guid: 0fae4229eea635b4ea084c6aa2c38cce, type: 3}
+  - {fileID: 8758664197819892748, guid: fb70b52089022cb4089d13864cf42fdf, type: 3}
+  - {fileID: 6120926785960640685, guid: edbeaed1d333ded4b837f5e52f004c66, type: 3}
+  - {fileID: 411258710773217432, guid: ce297987572d02846ad1623bf4453dff, type: 3}
+  - {fileID: 5759019461159089523, guid: b019a6eb7f4e51d479e70522fb4c54a9, type: 3}
+  - {fileID: 4915392833855230651, guid: 6283babf7349b854f9b8e58e9953ba44, type: 3}
+  - {fileID: 5865496910951345820, guid: 50b63db9ad8f28745bcdb78a2a24fa38, type: 3}
+  - {fileID: 5639855482223514036, guid: b55d14d23d4f85d44a1e8beffb581714, type: 3}
+  - {fileID: 6911586025328288604, guid: f659c189d60e8544b987a945dea54c3b, type: 3}
+  - {fileID: 1112662652322390579, guid: 16d78d30b4897b3418020c119017164c, type: 3}
+  - {fileID: 414063182137817707, guid: 46a9196935a610544b8a3274a97c27b1, type: 3}
