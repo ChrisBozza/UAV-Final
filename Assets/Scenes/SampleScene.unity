@@ -6318,7 +6318,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4050965772584199738, guid: a3a8b00e8d41854449cce210a12ba1c0, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 122.566216
+      value: 128.1
       objectReference: {fileID: 0}
     - target: {fileID: 4050965772584199738, guid: a3a8b00e8d41854449cce210a12ba1c0, type: 3}
       propertyPath: m_LocalPosition.z
@@ -6534,6 +6534,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MovementTracker
   movementDecay: {fileID: 0}
   keyboardInput: {fileID: 0}
+  visualTilt: {fileID: 0}
 --- !u!1001 &2107948975
 PrefabInstance:
   m_ObjectHideFlags: 0
