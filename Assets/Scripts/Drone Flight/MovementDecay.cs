@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 public class MovementDecay : MonoBehaviour
@@ -10,16 +11,25 @@ public class MovementDecay : MonoBehaviour
     void Start()
     {
         droneController = GetComponent<DroneController>();
+        StartCoroutine(DecayHandler());
     }
 
-    // Update is called once per frame
-    void Update()
-    {
-        if (!movementTracker) return;
-        if (movementTracker.IsMoving("up")) return;
-        if (movementTracker.IsMoving("down")) return;
+    private IEnumerator DecayHandler() {
+        // Wait until movementTracker is initialized
+        bool isInitialized = false;
+        while (isInitialized) {
+            yield return new WaitForSeconds(0.1f);
+            if (movementTracker) {
+                isInitialized = true;
+            }
+        }
 
-        DecayVerticalMovement();
+        while (true) {
+            yield return new WaitForSeconds(0.1f);
+            DecayVerticalMovement();
+            DecayHorizontalMovement();
+        }
+            
     }
 
     public void SetMovementTracker(MovementTracker x) {
@@ -27,13 +37,44 @@ public class MovementDecay : MonoBehaviour
     }
 
     public void DecayVerticalMovement() {
+
+        if (movementTracker.IsMoving("up")) return;
+        if (movementTracker.IsMoving("down")) return;
+
         Vector3 currentMomentum = droneController.GetMomentum();
         currentMomentum.y *= 0.95f; // Reduce vertical velocity by 5%
 
-        if (currentMomentum.y > 0.01f || currentMomentum.y < -0.01f) {
+        if (Mathf.Abs(currentMomentum.y) > 0.01f) {
             droneController.SetMomentum(currentMomentum);
         } else {
             currentMomentum.y = 0f;
+            droneController.SetMomentum(currentMomentum);
+        }
+    }
+
+    public void DecayHorizontalMovement() {
+        /* Horizontal decay should always be active to act as friction
+        if (movementTracker.IsMoving("forward") ||
+            movementTracker.IsMoving("backward") ||
+            movementTracker.IsMoving("left") ||
+            movementTracker.IsMoving("right")) return;
+        */
+
+        Vector3 currentMomentum = droneController.GetMomentum();
+        currentMomentum.x *= 0.98f; // Reduce horizontal velocity by 5%
+        currentMomentum.z *= 0.98f; // Reduce horizontal velocity by 5%
+
+        if (Mathf.Abs(currentMomentum.x) > 0.01f) {
+            droneController.SetMomentum(currentMomentum);
+        } else {
+            currentMomentum.x = 0f;
+            droneController.SetMomentum(currentMomentum);
+        }
+
+        if (Mathf.Abs(currentMomentum.z) > 0.01f) {
+            droneController.SetMomentum(currentMomentum);
+        } else {
+            currentMomentum.z = 0f;
             droneController.SetMomentum(currentMomentum);
         }
     }

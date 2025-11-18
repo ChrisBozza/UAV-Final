@@ -2,20 +2,31 @@ using UnityEngine;
 using System.Collections;
 
 public class DroneController : MonoBehaviour {
+    [Header("Blade Animators")]
     [SerializeField] Animator blade1;
     [SerializeField] Animator blade2;
     [SerializeField] Animator blade3;
     [SerializeField] Animator blade4;
 
-    Vector3 velocity;
-    Vector3 rotationVelocity; // Rotation in degrees per frame
-    float stabilizationStrength = 2f;
+    [Header("Physics Settings")]
+    [SerializeField] float forceMultiplier = 100f;
+    [SerializeField] float hoverForce = 9.81f;
+
+    Rigidbody rb;
+
+    Vector3 targetVelocity;
+    Vector3 rotationVelocity;
+
+    void Awake() {
+        rb = GetComponent<Rigidbody>();
+    }
 
     void Start() {
         StartBladeAnimation();
     }
 
-    void Update() {
+    void FixedUpdate() {
+        ApplyHoverForce();
         ApplyMovement();
     }
 
@@ -26,37 +37,38 @@ public class DroneController : MonoBehaviour {
         if (blade4) blade4.SetBool("Active", true);
     }
 
-    void ApplyMovement() {
-        // Apply Movement
-        if (velocity.sqrMagnitude > 0.0001f)
-            transform.position += velocity * Time.deltaTime;
+    void ApplyHoverForce() {
+        if (!rb) return;
+        rb.AddForce(Vector3.up * hoverForce * rb.mass, ForceMode.Force);
+    }
 
-        // Apply Rotation
-        if (rotationVelocity.sqrMagnitude > 0.0001f) {
-            transform.Rotate(rotationVelocity, Space.Self);
-            rotationVelocity = Vector3.zero;
+    void ApplyMovement() {
+        if (!rb) return;
+
+        if (targetVelocity.sqrMagnitude > 0.0001f) {
+            Vector3 velocityDifference = targetVelocity - rb.linearVelocity;
+            Vector3 force = velocityDifference * forceMultiplier;
+            rb.AddForce(force, ForceMode.Force);
         }
 
-        // Stabalize
-        if (velocity.sqrMagnitude < 0.01f) {
-            Vector3 euler = transform.rotation.eulerAngles;
-            euler.x = 0;
-            euler.z = 0;
-            transform.rotation = Quaternion.Euler(euler);
+        if (rotationVelocity.sqrMagnitude > 0.0001f) {
+            Quaternion delta = Quaternion.Euler(rotationVelocity * Time.fixedDeltaTime);
+            rb.MoveRotation(rb.rotation * delta);
+            rotationVelocity = Vector3.zero;
         }
     }
 
     public Vector3 GetMomentum() {
-        return velocity;
+        return targetVelocity;
     }
 
     public void SetMomentum(Vector3 momentum) {
-        velocity = momentum;
+        targetVelocity = momentum;
     }
 
     public void AddMomentum(Vector3 relMomentum) {
-        Vector3 absMomentum  = transform.TransformDirection(relMomentum);
-        velocity += absMomentum;
+        Vector3 absMomentum = transform.TransformDirection(relMomentum);
+        targetVelocity += absMomentum;
     }
 
     public void AddRotation(Vector3 relRotation) {
@@ -67,10 +79,10 @@ public class DroneController : MonoBehaviour {
     public IEnumerator CalculateMovement(Vector3 targetPosition) {
         while ((transform.position - targetPosition).sqrMagnitude > 0.01f) {
             Vector3 direction = (targetPosition - transform.position).normalized;
-            velocity = direction;
+            targetVelocity = direction;
             yield return null;
         }
 
-        velocity = Vector3.zero;
+        targetVelocity = Vector3.zero;
     }
 }

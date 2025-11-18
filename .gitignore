@@ -166,3 +166,5 @@ ProjectSettings/ProjectSettings.asset
 # ===================================== #
 
 Packages/packages-lock.json
+/.bezisidekick
+/Packages/com.bezi.sidekick
