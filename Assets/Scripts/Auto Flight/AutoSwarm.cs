@@ -4,16 +4,26 @@ using UnityEngine;
 public class AutoSwarm: MonoBehaviour
 {
     [SerializeField] GameObject drone1;
+    DroneComputer droneComputer1;
     [SerializeField] GameObject[] checkpoints;
-
-    DroneController droneController;
 
     public bool swarmActive = true;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        droneController = drone1.GetComponent<DroneController>();
+        droneComputer1 = drone1.GetComponent<DroneComputer>();
+        StartCoroutine(MissionHandler());
+
+    }
+
+    private IEnumerator MissionHandler() {
+
+        droneComputer1.autoPilot = true;
+        droneComputer1.SetTarget(checkpoints[0].transform);
+
+
+        yield return null;
     }
 
     private IEnumerator Step() {

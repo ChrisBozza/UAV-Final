@@ -5,7 +5,7 @@ public class KeyboardInput : MonoBehaviour {
     [SerializeField] float moveSpeed = 5f;
     [SerializeField] float rotationSpeed = 90f; // degrees per second
 
-    void Update() {
+    void FixedUpdate() {
         if (!drone) return;
 
         ApplyInputs();  
@@ -41,7 +41,7 @@ public class KeyboardInput : MonoBehaviour {
         Vector3 momentum = new Vector3(x, y, z).normalized;
 
         if (momentum.sqrMagnitude > 0f) {
-            drone.AddMomentum(momentum * moveSpeed * Time.deltaTime);
+            drone.AddMomentum(momentum * moveSpeed * Time.fixedDeltaTime);
         }
 
 
@@ -56,7 +56,7 @@ public class KeyboardInput : MonoBehaviour {
         }
 
         if (rotationInput != Vector3.zero) {
-            drone.AddRotation(rotationInput * rotationSpeed * Time.deltaTime);
+            drone.AddRotation(rotationInput * rotationSpeed * Time.fixedDeltaTime);
         }
 
 

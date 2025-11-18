@@ -11,6 +11,7 @@ public class DroneController : MonoBehaviour {
     [Header("Physics Settings")]
     [SerializeField] float forceMultiplier = 100f;
     [SerializeField] float hoverForce = 9.81f;
+    public float maxSpeed = 3f;
 
     Rigidbody rb;
 
@@ -21,6 +22,9 @@ public class DroneController : MonoBehaviour {
 
     void Awake() {
         rb = GetComponent<Rigidbody>();
+        if (rb) {
+            rb.useGravity = false;
+        }
     }
 
     void Start() {
@@ -28,7 +32,6 @@ public class DroneController : MonoBehaviour {
     }
 
     void FixedUpdate() {
-        ApplyHoverForce();
         ApplyMovement();
     }
 
@@ -47,11 +50,9 @@ public class DroneController : MonoBehaviour {
     void ApplyMovement() {
         if (!rb) return;
 
-        if (targetVelocity.sqrMagnitude > 0.0001f) {
-            Vector3 velocityDifference = targetVelocity - rb.linearVelocity;
-            Vector3 force = velocityDifference * forceMultiplier;
-            rb.AddForce(force, ForceMode.Force);
-        }
+        Vector3 velocityDifference = targetVelocity - rb.linearVelocity;
+        Vector3 force = velocityDifference * forceMultiplier;
+        rb.AddForce(force, ForceMode.Force);
 
         if (rotationVelocity.sqrMagnitude > 0.0001f) {
             Quaternion delta = Quaternion.Euler(rotationVelocity * Time.fixedDeltaTime);
@@ -59,6 +60,7 @@ public class DroneController : MonoBehaviour {
             rotationVelocity = Vector3.zero;
         }
 
+        enginePower = Vector3.zero;
     }
 
     public Vector3 GetMomentum() {
@@ -76,6 +78,7 @@ public class DroneController : MonoBehaviour {
         enginePower += relMomentum;
         Vector3 absMomentum = transform.TransformDirection(relMomentum);
         targetVelocity += absMomentum;
+        targetVelocity = Vector3.ClampMagnitude(targetVelocity, maxSpeed);
     }
 
     public void AddRotation(Vector3 relRotation) {
@@ -83,6 +86,8 @@ public class DroneController : MonoBehaviour {
         rotationVelocity += absRotation;
     }
 
+    // Currently unused???
+    // Drone bugs rn out idk why
     public IEnumerator CalculateMovement(Vector3 targetPosition) {
         while ((transform.position - targetPosition).sqrMagnitude > 0.01f) {
             Vector3 direction = (targetPosition - transform.position).normalized;
