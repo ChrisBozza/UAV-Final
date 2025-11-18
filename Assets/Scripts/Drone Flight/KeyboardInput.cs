@@ -5,23 +5,13 @@ public class KeyboardInput : MonoBehaviour {
     [SerializeField] float moveSpeed = 5f;
     [SerializeField] float rotationSpeed = 90f; // degrees per second
 
-    MovementTracker movementTracker;
-
-    public void SetMovementTracker(MovementTracker x) {
-        movementTracker = x;
-    }
-
     void Update() {
         if (!drone) return;
-        if (!movementTracker) return;
 
         ApplyInputs();  
     }
 
     public void ApplyInputs() {
-
-        // Clear Movement State
-        movementTracker.ClearMovementState();
 
         // Movement Momentum
         float x = 0f;
@@ -30,27 +20,21 @@ public class KeyboardInput : MonoBehaviour {
 
         if (Input.GetKey(KeyCode.W)) {
             z += 1f;
-            movementTracker.SetMovementState("forward", true);
         }
         if (Input.GetKey(KeyCode.S)) {
             z -= 1f;
-            movementTracker.SetMovementState("backward", true);
         }
         if (Input.GetKey(KeyCode.A)) {
             x -= 1f;
-            movementTracker.SetMovementState("left", true);
         }
         if (Input.GetKey(KeyCode.D)) {
             x += 1f;
-            movementTracker.SetMovementState("right", true);
         }
         if (Input.GetKey(KeyCode.Space)) {
             y += 1f;
-            movementTracker.SetMovementState("up", true);
         }
         if (Input.GetKey(KeyCode.LeftShift)) {
             y -= 1f;
-            movementTracker.SetMovementState("down", true);
         }
 
 
@@ -66,11 +50,9 @@ public class KeyboardInput : MonoBehaviour {
 
         if (Input.GetKey(KeyCode.Q)) {
             rotationInput.y -= 1f;
-            movementTracker.SetMovementState("yawLeft", true);
         }
         if (Input.GetKey(KeyCode.E)) {
             rotationInput.y += 1f;
-            movementTracker.SetMovementState("yawRight", true);
         }
 
         if (rotationInput != Vector3.zero) {

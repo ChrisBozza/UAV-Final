@@ -17,6 +17,8 @@ public class DroneController : MonoBehaviour {
     Vector3 targetVelocity;
     Vector3 rotationVelocity;
 
+    Vector3 enginePower;
+
     void Awake() {
         rb = GetComponent<Rigidbody>();
     }
@@ -56,10 +58,14 @@ public class DroneController : MonoBehaviour {
             rb.MoveRotation(rb.rotation * delta);
             rotationVelocity = Vector3.zero;
         }
+
     }
 
     public Vector3 GetMomentum() {
         return targetVelocity;
+    }
+    public Vector3 GetEnginePower() {
+        return enginePower;
     }
 
     public void SetMomentum(Vector3 momentum) {
@@ -67,6 +73,7 @@ public class DroneController : MonoBehaviour {
     }
 
     public void AddMomentum(Vector3 relMomentum) {
+        enginePower += relMomentum;
         Vector3 absMomentum = transform.TransformDirection(relMomentum);
         targetVelocity += absMomentum;
     }

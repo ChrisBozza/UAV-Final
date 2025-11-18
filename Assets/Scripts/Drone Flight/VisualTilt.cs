@@ -2,14 +2,14 @@ using UnityEngine;
 
 public class VisualTilt : MonoBehaviour {
 
-    [SerializeField] GameObject droneBody;
     [SerializeField] float tiltAmount = 15f; // Max tilt angle in degrees
     [SerializeField] float tiltSpeed = 5f;  // How fast the tilt interpolates
 
-    MovementTracker movementTracker;
+    [SerializeField] GameObject droneBody;
+    DroneController droneController;
 
-    public void SetMovementTracker(MovementTracker x) {
-        movementTracker = x;
+    void Start() {
+        droneController = GetComponent<DroneController>();
     }
 
     void Update() {
@@ -17,25 +17,26 @@ public class VisualTilt : MonoBehaviour {
     }
 
     public void UpdateTilt() {
-        float tiltX = 0f;
-        float tiltZ = 0f;
+        Vector3 enginePower = droneController.GetEnginePower();
 
-        if (movementTracker.IsMoving("forward"))
-            tiltX = tiltAmount;
+        // Horizontal direction only
+        Vector3 dir = new Vector3(enginePower.x, 0f, enginePower.z);
 
-        else if (movementTracker.IsMoving("backward"))
-            tiltX = -tiltAmount;
+        // Normalize so tilt amount stays consistent
+        if (dir.sqrMagnitude > 0.0001f)
+            dir.Normalize();
 
-        if (movementTracker.IsMoving("left"))
-            tiltZ = tiltAmount;
+        // Convert movement direction into tilt
+        // Forward movement means tilt forward (positive X tilt)
+        float tiltX = dir.z * tiltAmount;
+        float tiltZ = -dir.x * tiltAmount;
 
-        else if (movementTracker.IsMoving("right"))
-            tiltZ = -tiltAmount;
+        Vector3 tilt = new Vector3(tiltX, 0f, tiltZ);
 
-        // Build rotation
-        Quaternion targetRotation = Quaternion.Euler(tiltX, 0f, tiltZ);
+        Quaternion targetRotation = Quaternion.Euler(tilt);
 
-        // Smooth transition
-        droneBody.transform.localRotation = Quaternion.Lerp(droneBody.transform.localRotation, targetRotation, Time.deltaTime * tiltSpeed);
+        droneBody.transform.localRotation =
+            Quaternion.Lerp(droneBody.transform.localRotation, targetRotation, Time.deltaTime * tiltSpeed);
     }
+
 }
