@@ -7,14 +7,21 @@ public class KeyboardInput : MonoBehaviour {
 
     void FixedUpdate() {
         if (!drone) return;
+        if (IsCrashed()) return;
 
         ApplyInputs();  
     }
 
     void Update() {
         if (!drone) return;
+        if (IsCrashed()) return;
 
         ApplyRotationInputs();
+    }
+
+    bool IsCrashed() {
+        DroneCrashDetection crashDetection = drone.GetComponent<DroneCrashDetection>();
+        return crashDetection != null && crashDetection.HasCrashed();
     }
 
     public void ApplyInputs() {

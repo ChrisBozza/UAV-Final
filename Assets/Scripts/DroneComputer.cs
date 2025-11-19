@@ -74,9 +74,6 @@ public class DroneComputer : MonoBehaviour
         return accelVector;
     }
 
-    private void ApproachPoint(Transform point) {
-    }
-
     public void AddMomentum(Vector3 momentum) {
         if (!droneReady) return;
 

@@ -10,11 +10,12 @@ public class DroneController : MonoBehaviour {
 
     [Header("Physics Settings")]
     [SerializeField] float forceMultiplier = 100f;
-    [SerializeField] float hoverForce = 9.81f;
+    [SerializeField] float crashGravityForce = 9.81f;
     public float maxSpeed = 3f;
 
     [Header("Drone References")]
     public Transform visualDrone;
+    public DroneCrashDetection droneCrashDetection;
 
     Rigidbody rb;
 
@@ -43,18 +44,33 @@ public class DroneController : MonoBehaviour {
     }
 
     void StartBladeAnimation() {
-        if (blade1) blade1.SetBool("Active", true);
-        if (blade2) blade2.SetBool("Active", true);
-        if (blade3) blade3.SetBool("Active", true);
-        if (blade4) blade4.SetBool("Active", true);
+        if (blade1) blade1.speed = 1f;
+        if (blade2) blade2.speed = 1f;
+        if (blade3) blade3.speed = 1f;
+        if (blade4) blade4.speed = 1f;
+    }
+
+    public void StopBladeAnimation() {
+        if (blade1) blade1.speed = 0f;
+        if (blade2) blade2.speed = 0f;
+        if (blade3) blade3.speed = 0f;
+        if (blade4) blade4.speed = 0f;
     }
 
     void ApplyMovement() {
         if (!rb) return;
+        if (droneCrashDetection.HasCrashed()) {
+            ApplyCrashedMovement();
+            return;
+        }
 
         Vector3 velocityDifference = targetVelocity - rb.linearVelocity;
         Vector3 force = velocityDifference * forceMultiplier;
         rb.AddForce(force, ForceMode.Force);
+    }
+
+    void ApplyCrashedMovement() {
+        rb.AddForce(Vector3.down * crashGravityForce, ForceMode.Acceleration);
     }
 
     public Vector3 GetMomentum() {
@@ -62,10 +78,12 @@ public class DroneController : MonoBehaviour {
     }
     
     public Vector3 GetEnginePower() {
+        if (droneCrashDetection.HasCrashed()) return Vector3.zero;
         return enginePower;
     }
 
     public Vector3 GetEnginePowerWorldSpace() {
+        if (droneCrashDetection.HasCrashed()) return Vector3.zero;
         return enginePowerWorldSpace;
     }
 
@@ -77,6 +95,7 @@ public class DroneController : MonoBehaviour {
         enginePower += relMomentum;
         Vector3 absMomentum = transform.TransformDirection(relMomentum);
         enginePowerWorldSpace += absMomentum;
+
         targetVelocity += absMomentum;
         targetVelocity = Vector3.ClampMagnitude(targetVelocity, maxSpeed);
     }
@@ -98,6 +117,7 @@ public class DroneController : MonoBehaviour {
 
     public void SetVisualRotation(Vector3 targetDirection, float rotationSpeed) {
         if (visualDrone == null) return;
+        if (droneCrashDetection.HasCrashed()) return;
 
         Vector3 flatTargetDir = new Vector3(targetDirection.x, 0f, targetDirection.z);
         if (flatTargetDir.sqrMagnitude < 0.001f) return;
