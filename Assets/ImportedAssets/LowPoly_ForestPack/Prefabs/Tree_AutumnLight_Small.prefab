@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 7163553152872253357}
   - component: {fileID: 892302771299947706}
   - component: {fileID: 2331198165744174632}
+  - component: {fileID: 2899480917161408907}
   m_Layer: 0
   m_Name: Tree_AutumnLight_Small
   m_TagString: Untagged
@@ -90,3 +91,16 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &2899480917161408907
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5865496910951345820}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: edc0a0587c60ce74b9b1d5c9b0e6889d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TreeVisibility
+  Camera: {fileID: 0}

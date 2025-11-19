@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 4101579337045797588}
   - component: {fileID: 2812102115468104569}
   - component: {fileID: 8462856422161333155}
+  - component: {fileID: 1202029107817159087}
   m_Layer: 0
   m_Name: Tree_Autumn
   m_TagString: Untagged
@@ -90,3 +91,16 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &1202029107817159087
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 411258710773217432}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: edc0a0587c60ce74b9b1d5c9b0e6889d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TreeVisibility
+  Camera: {fileID: 0}
