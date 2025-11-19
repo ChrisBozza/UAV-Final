@@ -2,32 +2,31 @@ using UnityEngine;
 
 public class VisualTilt : MonoBehaviour {
 
-    [SerializeField] float tiltAmount = 15f; // Max tilt angle in degrees
-    [SerializeField] float tiltSpeed = 5f;  // How fast the tilt interpolates
+    [SerializeField] float tiltAmount = 15f;
+    [SerializeField] float tiltSpeed = 5f;
 
     [SerializeField] GameObject droneBody;
-    DroneController droneController;
+    [SerializeField] DroneController droneController;
 
-    void Start() {
-        droneController = GetComponent<DroneController>();
-    }
+    [Header("Debug")]
+    [SerializeField] bool showDebug = false;
 
     void Update() {
         UpdateTilt();
     }
 
     public void UpdateTilt() {
-        Vector3 enginePower = droneController.GetEnginePower();
+        if (droneController == null || droneBody == null) return;
 
-        // Horizontal direction only
-        Vector3 dir = new Vector3(enginePower.x, 0f, enginePower.z);
+        Vector3 worldEnginePower = droneController.GetEnginePowerWorldSpace();
 
-        // Normalize so tilt amount stays consistent
+        Vector3 localEnginePower = transform.InverseTransformDirection(worldEnginePower);
+
+        Vector3 dir = new Vector3(localEnginePower.x, 0f, localEnginePower.z);
+
         if (dir.sqrMagnitude > 0.0001f)
             dir.Normalize();
 
-        // Convert movement direction into tilt
-        // Forward movement means tilt forward (positive X tilt)
         float tiltX = dir.z * tiltAmount;
         float tiltZ = -dir.x * tiltAmount;
 
@@ -37,6 +36,10 @@ public class VisualTilt : MonoBehaviour {
 
         droneBody.transform.localRotation =
             Quaternion.Lerp(droneBody.transform.localRotation, targetRotation, Time.deltaTime * tiltSpeed);
+
+        if (showDebug && worldEnginePower.sqrMagnitude > 0.001f) {
+            Debug.Log($"World Power: {worldEnginePower} | Local Power: {localEnginePower} | Tilt: {tilt} | Body Rotation: {droneBody.transform.localEulerAngles}");
+        }
     }
 
 }

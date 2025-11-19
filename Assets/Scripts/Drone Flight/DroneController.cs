@@ -13,16 +13,14 @@ public class DroneController : MonoBehaviour {
     [SerializeField] float hoverForce = 9.81f;
     public float maxSpeed = 3f;
 
-    [Header("Visual Rotation")]
-    public Transform droneRender;
-    public float rotationMatchThreshold = 1f;
+    [Header("Drone References")]
+    public Transform visualDrone;
 
     Rigidbody rb;
 
     Vector3 targetVelocity;
-    Vector3 rotationVelocity;
-
     Vector3 enginePower;
+    Vector3 enginePowerWorldSpace;
 
     void Awake() {
         rb = GetComponent<Rigidbody>();
@@ -39,16 +37,16 @@ public class DroneController : MonoBehaviour {
         ApplyMovement();
     }
 
+    void LateUpdate() {
+        enginePower = Vector3.zero;
+        enginePowerWorldSpace = Vector3.zero;
+    }
+
     void StartBladeAnimation() {
         if (blade1) blade1.SetBool("Active", true);
         if (blade2) blade2.SetBool("Active", true);
         if (blade3) blade3.SetBool("Active", true);
         if (blade4) blade4.SetBool("Active", true);
-    }
-
-    void ApplyHoverForce() {
-        if (!rb) return;
-        rb.AddForce(Vector3.up * hoverForce * rb.mass, ForceMode.Force);
     }
 
     void ApplyMovement() {
@@ -57,21 +55,18 @@ public class DroneController : MonoBehaviour {
         Vector3 velocityDifference = targetVelocity - rb.linearVelocity;
         Vector3 force = velocityDifference * forceMultiplier;
         rb.AddForce(force, ForceMode.Force);
-
-        if (rotationVelocity.sqrMagnitude > 0.0001f) {
-            Quaternion delta = Quaternion.Euler(rotationVelocity * Time.fixedDeltaTime);
-            rb.MoveRotation(rb.rotation * delta);
-            rotationVelocity = Vector3.zero;
-        }
-
-        enginePower = Vector3.zero;
     }
 
     public Vector3 GetMomentum() {
         return targetVelocity;
     }
+    
     public Vector3 GetEnginePower() {
         return enginePower;
+    }
+
+    public Vector3 GetEnginePowerWorldSpace() {
+        return enginePowerWorldSpace;
     }
 
     public void SetMomentum(Vector3 momentum) {
@@ -81,21 +76,28 @@ public class DroneController : MonoBehaviour {
     public void AddMomentum(Vector3 relMomentum) {
         enginePower += relMomentum;
         Vector3 absMomentum = transform.TransformDirection(relMomentum);
+        enginePowerWorldSpace += absMomentum;
         targetVelocity += absMomentum;
         targetVelocity = Vector3.ClampMagnitude(targetVelocity, maxSpeed);
     }
 
-    public void AddRotation(Vector3 relRotation) {
-        if (!RotationsMatch()) {
-            SwitchActiveController();
+    public void AddMomentumRelativeToVisual(Vector3 relMomentum, bool useVisualRotation) {
+        enginePower += relMomentum;
+        
+        Vector3 absMomentum;
+        if (useVisualRotation && visualDrone != null) {
+            absMomentum = visualDrone.TransformDirection(relMomentum);
+        } else {
+            absMomentum = transform.TransformDirection(relMomentum);
         }
         
-        Vector3 absRotation = transform.TransformDirection(relRotation);
-        rotationVelocity += absRotation;
+        enginePowerWorldSpace += absMomentum;
+        targetVelocity += absMomentum;
+        targetVelocity = Vector3.ClampMagnitude(targetVelocity, maxSpeed);
     }
 
-    public void AddVisualRotation(Vector3 targetDirection, float rotationSpeed) {
-        if (droneRender == null) return;
+    public void SetVisualRotation(Vector3 targetDirection, float rotationSpeed) {
+        if (visualDrone == null) return;
 
         Vector3 flatTargetDir = new Vector3(targetDirection.x, 0f, targetDirection.z);
         if (flatTargetDir.sqrMagnitude < 0.001f) return;
@@ -103,34 +105,21 @@ public class DroneController : MonoBehaviour {
         Quaternion targetRotation = Quaternion.LookRotation(flatTargetDir, Vector3.up);
         
         float yaw = targetRotation.eulerAngles.y;
-        float currentYaw = droneRender.localEulerAngles.y;
+        float currentYaw = visualDrone.eulerAngles.y;
         float newYaw = Mathf.MoveTowardsAngle(currentYaw, yaw, rotationSpeed * Time.deltaTime);
         
-        droneRender.localRotation = Quaternion.Euler(0f, newYaw, 0f);
+        visualDrone.rotation = Quaternion.Euler(0f, newYaw, 0f);
     }
 
-    public void SwitchActiveController() {
-        if (droneRender == null) return;
-        
-        rb.MoveRotation(droneRender.rotation);
+    public Vector3 GetPosition() {
+        return transform.position;
     }
 
-    bool RotationsMatch() {
-        if (droneRender == null) return true;
-        
-        float angle = Quaternion.Angle(transform.rotation, droneRender.rotation);
-        return angle < rotationMatchThreshold;
+    public Quaternion GetRotation() {
+        return transform.rotation;
     }
 
-    // Currently unused???
-    // Drone bugs rn out idk why
-    public IEnumerator CalculateMovement(Vector3 targetPosition) {
-        while ((transform.position - targetPosition).sqrMagnitude > 0.01f) {
-            Vector3 direction = (targetPosition - transform.position).normalized;
-            targetVelocity = direction;
-            yield return null;
-        }
-
-        targetVelocity = Vector3.zero;
+    public Vector3 GetVelocity() {
+        return rb ? rb.linearVelocity : Vector3.zero;
     }
 }
