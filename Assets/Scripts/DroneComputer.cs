@@ -7,6 +7,8 @@ public class DroneComputer : MonoBehaviour
     public bool droneReady = false;
 
     public bool autoPilot = false;
+    public bool reachedTarget = false;
+    public float rotationSpeed = 90f;
     Transform target;
 
 
@@ -33,18 +35,23 @@ public class DroneComputer : MonoBehaviour
         Vector3 toTarget = point.position - transform.position;
         float dist = toTarget.magnitude;
 
-        // Hand off when close
-        // if (dist < 1f) {
-        //    ApproachPoint(point);
-        //    return;
-        // }
+        
+        if (dist < 1f) {
+            reachedTarget = true;
+        }
 
         Vector3 dir = toTarget.normalized;
         Vector3 current = droneController.GetMomentum();
         float maxSpeed = droneController.maxSpeed;
 
+        RotateTowardsTarget(dir);
+
         Vector3 desiredMomentum = ComputeDesiredMomentum(dir, current, maxSpeed);
         droneController.AddMomentum(desiredMomentum);
+    }
+
+    private void RotateTowardsTarget(Vector3 targetDirection) {
+        droneController.AddVisualRotation(targetDirection, rotationSpeed);
     }
 
     private Vector3 ComputeDesiredMomentum(Vector3 dir, Vector3 current, float maxSpeed) {
@@ -94,6 +101,7 @@ public class DroneComputer : MonoBehaviour
     }
 
     public void SetTarget(Transform t) {
+        reachedTarget = false;
         target = t;
     }
 }

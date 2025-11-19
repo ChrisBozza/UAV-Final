@@ -13,6 +13,10 @@ public class DroneController : MonoBehaviour {
     [SerializeField] float hoverForce = 9.81f;
     public float maxSpeed = 3f;
 
+    [Header("Visual Rotation")]
+    public Transform droneRender;
+    public float rotationMatchThreshold = 1f;
+
     Rigidbody rb;
 
     Vector3 targetVelocity;
@@ -82,8 +86,40 @@ public class DroneController : MonoBehaviour {
     }
 
     public void AddRotation(Vector3 relRotation) {
+        if (!RotationsMatch()) {
+            SwitchActiveController();
+        }
+        
         Vector3 absRotation = transform.TransformDirection(relRotation);
         rotationVelocity += absRotation;
+    }
+
+    public void AddVisualRotation(Vector3 targetDirection, float rotationSpeed) {
+        if (droneRender == null) return;
+
+        Vector3 flatTargetDir = new Vector3(targetDirection.x, 0f, targetDirection.z);
+        if (flatTargetDir.sqrMagnitude < 0.001f) return;
+
+        Quaternion targetRotation = Quaternion.LookRotation(flatTargetDir, Vector3.up);
+        
+        float yaw = targetRotation.eulerAngles.y;
+        float currentYaw = droneRender.localEulerAngles.y;
+        float newYaw = Mathf.MoveTowardsAngle(currentYaw, yaw, rotationSpeed * Time.deltaTime);
+        
+        droneRender.localRotation = Quaternion.Euler(0f, newYaw, 0f);
+    }
+
+    public void SwitchActiveController() {
+        if (droneRender == null) return;
+        
+        rb.MoveRotation(droneRender.rotation);
+    }
+
+    bool RotationsMatch() {
+        if (droneRender == null) return true;
+        
+        float angle = Quaternion.Angle(transform.rotation, droneRender.rotation);
+        return angle < rotationMatchThreshold;
     }
 
     // Currently unused???
