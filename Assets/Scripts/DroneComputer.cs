@@ -130,6 +130,11 @@ public class DroneComputer : MonoBehaviour
         autoPilot = b;
     }
 
+    public void RotateTowardsDirection(Vector3 direction) {
+        if (!droneReady) return;
+        droneController.SetVisualRotation(direction, rotationSpeed);
+    }
+
     public void SetTarget(Transform t) {
         reachedTarget = false;
         target = t;

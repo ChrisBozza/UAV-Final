@@ -20,6 +20,7 @@ public class AutoSwarm: MonoBehaviour
     [Header("Special Behaviors")]
     [SerializeField] CheckpointBehaviorHandler behaviorHandler;
     [SerializeField] float hoverHeightAboveLanding = 2f;
+    [SerializeField] float stabilizationTime = 1f;
 
     [Header("Prediction System")]
     [SerializeField] DronePathPredictor pathPredictor;
@@ -97,13 +98,43 @@ public class AutoSwarm: MonoBehaviour
 
     private IEnumerator HandleTakeoff(CheckpointBehaviorHandler.CheckpointInfo checkpointInfo, Transform nextCheckpoint)
     {
-        Vector3 averagePosition = GetAverageSwarmPosition();
-        Transform takeoffTarget = behaviorHandler.CreateTakeoffPosition(averagePosition, checkpointInfo.takeoffCheckpoint);
+        float targetHeight = checkpointInfo.takeoffCheckpoint.position.y;
 
-        SetIndividualTargets(takeoffTarget, takeoffTarget, takeoffTarget);
+        Transform takeoffTarget1 = behaviorHandler.CreateIndividualTakeoffPosition(drone1.transform.position, targetHeight, 0);
+        Transform takeoffTarget2 = behaviorHandler.CreateIndividualTakeoffPosition(drone2.transform.position, targetHeight, 1);
+        Transform takeoffTarget3 = behaviorHandler.CreateIndividualTakeoffPosition(drone3.transform.position, targetHeight, 2);
+
+        SetIndividualTargets(takeoffTarget1, takeoffTarget2, takeoffTarget3);
 
         while (!SwarmReachedTarget()) {
             yield return null;
+        }
+
+        yield return StabilizeSwarm(nextCheckpoint);
+    }
+
+    private IEnumerator StabilizeSwarm(Transform nextCheckpoint)
+    {
+        if (nextCheckpoint != null)
+        {
+            Vector3 directionToNext = (nextCheckpoint.position - GetAverageSwarmPosition()).normalized;
+            Vector3 flatDirection = new Vector3(directionToNext.x, 0f, directionToNext.z).normalized;
+
+            float elapsedTime = 0f;
+            while (elapsedTime < stabilizationTime)
+            {
+                foreach (DroneComputer drone in allDrones)
+                {
+                    drone.RotateTowardsDirection(flatDirection);
+                }
+
+                elapsedTime += Time.deltaTime;
+                yield return null;
+            }
+        }
+        else
+        {
+            yield return new WaitForSeconds(stabilizationTime);
         }
     }
 

@@ -18,11 +18,19 @@ public class CheckpointBehaviorHandler : MonoBehaviour
     }
 
     private GameObject takeoffMarker;
+    private GameObject[] individualTakeoffMarkers;
 
     void Awake()
     {
         takeoffMarker = new GameObject("Takeoff_Marker");
         takeoffMarker.transform.SetParent(transform);
+
+        individualTakeoffMarkers = new GameObject[3];
+        for (int i = 0; i < 3; i++)
+        {
+            individualTakeoffMarkers[i] = new GameObject($"Takeoff_Marker_{i}");
+            individualTakeoffMarkers[i].transform.SetParent(transform);
+        }
     }
 
     public CheckpointInfo AnalyzeCheckpoint(Transform checkpoint)
@@ -74,6 +82,12 @@ public class CheckpointBehaviorHandler : MonoBehaviour
         float targetHeight = takeoffCheckpoint.position.y;
         takeoffMarker.transform.position = new Vector3(currentPosition.x, targetHeight, currentPosition.z);
         return takeoffMarker.transform;
+    }
+
+    public Transform CreateIndividualTakeoffPosition(Vector3 dronePosition, float targetHeight, int droneIndex)
+    {
+        individualTakeoffMarkers[droneIndex].transform.position = new Vector3(dronePosition.x, targetHeight, dronePosition.z);
+        return individualTakeoffMarkers[droneIndex].transform;
     }
 
     public Transform[] CreateHoverPositions(Transform[] landingPositions, float hoverHeight)
