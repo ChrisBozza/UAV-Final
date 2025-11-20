@@ -63,10 +63,12 @@ public class DroneComputer : MonoBehaviour
 
         float effectiveMaxSpeed = CalculateEffectiveMaxSpeed(baseMaxSpeed, distanceToTarget);
 
-        RotateTowardsTarget(dir);
+        if (!reachedTarget) {
+            RotateTowardsTarget(dir);
+        }
 
         Vector3 desiredMomentum = ComputeDesiredMomentum(dir, current, effectiveMaxSpeed, distanceToTarget);
-        droneController.AddMomentumRelativeToVisual(desiredMomentum, false);
+        droneController.AddMomentumWorld(desiredMomentum);
     }
 
     private float CalculateEffectiveMaxSpeed(float baseMaxSpeed, float distance) {

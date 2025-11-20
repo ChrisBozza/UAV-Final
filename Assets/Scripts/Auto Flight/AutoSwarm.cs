@@ -5,16 +5,29 @@ using UnityEngine;
 public class AutoSwarm: MonoBehaviour
 {
     [SerializeField] GameObject drone1;
+    [SerializeField] GameObject drone2;
+    [SerializeField] GameObject drone3;
     DroneComputer droneComputer1;
+    DroneComputer droneComputer2;
+    DroneComputer droneComputer3;
+
     [SerializeField] GameObject checkpointParent;
     private GameObject[] checkpoints;
+
+    [Header("Formation System")]
+    [SerializeField] TriangleFormationGenerator formationGenerator;
+
+    [Header("Special Behaviors")]
+    [SerializeField] CheckpointBehaviorHandler behaviorHandler;
+    [SerializeField] float hoverHeightAboveLanding = 2f;
 
     [Header("Prediction System")]
     [SerializeField] DronePathPredictor pathPredictor;
 
     public bool swarmActive = true;
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    private DroneComputer[] allDrones;
+
     void Start()
     {
         checkpoints = new GameObject[checkpointParent.transform.childCount];
@@ -25,50 +38,145 @@ public class AutoSwarm: MonoBehaviour
         Debug.Log(line);
 
         droneComputer1 = drone1.GetComponent<DroneComputer>();
-        StartCoroutine(MissionHandler());
+        droneComputer2 = drone2.GetComponent<DroneComputer>();
+        droneComputer3 = drone3.GetComponent<DroneComputer>();
 
+        allDrones = new DroneComputer[] { droneComputer1, droneComputer2, droneComputer3 };
+
+        if (formationGenerator == null)
+        {
+            formationGenerator = gameObject.AddComponent<TriangleFormationGenerator>();
+        }
+
+        if (behaviorHandler == null)
+        {
+            behaviorHandler = gameObject.AddComponent<CheckpointBehaviorHandler>();
+        }
+
+        StartCoroutine(MissionHandler());
     }
 
     private IEnumerator MissionHandler() {
 
-        droneComputer1.autoPilot = true;
+        SetAutoPilot(true);
 
         for (int i = 0; i < checkpoints.Length; i++) {
-            SetNewSwarmTarget(checkpoints[i].transform);
+            Transform currentCheckpoint = checkpoints[i].transform;
+            Transform nextCheckpoint = (i + 1 < checkpoints.Length) ? checkpoints[i + 1].transform : null;
+            
+            CheckpointBehaviorHandler.CheckpointInfo checkpointInfo = behaviorHandler.AnalyzeCheckpoint(currentCheckpoint);
 
-            while (!SwarmReachedTarget()) {
-                yield return null;
+            switch (checkpointInfo.type)
+            {
+                case CheckpointBehaviorHandler.CheckpointType.Takeoff:
+                    yield return HandleTakeoff(checkpointInfo, nextCheckpoint);
+                    break;
+
+                case CheckpointBehaviorHandler.CheckpointType.Landing:
+                    yield return HandleLanding(checkpointInfo);
+                    break;
+
+                case CheckpointBehaviorHandler.CheckpointType.Normal:
+                default:
+                    yield return HandleNormalCheckpoint(currentCheckpoint, nextCheckpoint);
+                    break;
             }
         }
-
-
 
         yield return null;
     }
 
-    private void SetNewSwarmTarget(Transform target) {
-        droneComputer1.SetTarget(target);
+    private IEnumerator HandleNormalCheckpoint(Transform currentCheckpoint, Transform nextCheckpoint)
+    {
+        SetNewSwarmTarget(currentCheckpoint, nextCheckpoint);
+
+        while (!SwarmReachedTarget()) {
+            yield return null;
+        }
+    }
+
+    private IEnumerator HandleTakeoff(CheckpointBehaviorHandler.CheckpointInfo checkpointInfo, Transform nextCheckpoint)
+    {
+        Vector3 averagePosition = GetAverageSwarmPosition();
+        Transform takeoffTarget = behaviorHandler.CreateTakeoffPosition(averagePosition, checkpointInfo.takeoffCheckpoint);
+
+        SetIndividualTargets(takeoffTarget, takeoffTarget, takeoffTarget);
+
+        while (!SwarmReachedTarget()) {
+            yield return null;
+        }
+    }
+
+    private IEnumerator HandleLanding(CheckpointBehaviorHandler.CheckpointInfo checkpointInfo)
+    {
+        if (checkpointInfo.landingPositions.Length < 3)
+        {
+            Debug.LogError("Landing checkpoint must have 3 children!");
+            yield break;
+        }
+
+        Transform[] hoverPositions = behaviorHandler.CreateHoverPositions(checkpointInfo.landingPositions, hoverHeightAboveLanding);
+
+        SetLowSpeedMode(true);
+
+        SetIndividualTargets(hoverPositions[0], hoverPositions[1], hoverPositions[2]);
+
+        while (!SwarmReachedTarget()) {
+            yield return null;
+        }
+
+        SetIndividualTargets(checkpointInfo.landingPositions[0], checkpointInfo.landingPositions[1], checkpointInfo.landingPositions[2]);
+
+        while (!SwarmReachedTarget()) {
+            yield return null;
+        }
+
+        SetLowSpeedMode(false);
+    }
+
+    private void SetAutoPilot(bool status) {
+        droneComputer1.autoPilot = status;
+        droneComputer2.autoPilot = status;
+        droneComputer3.autoPilot = status;
+    }
+
+    private void SetNewSwarmTarget(Transform currentCheckpoint, Transform nextCheckpoint) {
+        Transform[] formationTargets = formationGenerator.GenerateFormationTransforms(currentCheckpoint, nextCheckpoint);
+        
+        droneComputer1.SetTarget(formationTargets[0]);
+        droneComputer2.SetTarget(formationTargets[1]);
+        droneComputer3.SetTarget(formationTargets[2]);
         
         if (pathPredictor != null) {
-            pathPredictor.UpdatePrediction(target);
+            pathPredictor.UpdatePrediction(currentCheckpoint);
         }
-        
-        return;
+    }
+
+    private void SetIndividualTargets(Transform target1, Transform target2, Transform target3)
+    {
+        droneComputer1.SetTarget(target1);
+        droneComputer2.SetTarget(target2);
+        droneComputer3.SetTarget(target3);
     }
 
     private bool SwarmReachedTarget() {
-        return droneComputer1.reachedTarget;
+        return droneComputer1.reachedTarget && droneComputer2.reachedTarget && droneComputer3.reachedTarget;
     }
 
-    private IEnumerator Step() {
-        while (swarmActive) {
-            yield return new WaitForSeconds(0.1f);
+    private Vector3 GetAverageSwarmPosition()
+    {
+        Vector3 sum = drone1.transform.position + drone2.transform.position + drone3.transform.position;
+        return sum / 3f;
+    }
+
+    private void SetLowSpeedMode(bool enable)
+    {
+        float speedMultiplier = enable ? 0.5f : 1f;
+        
+        foreach (DroneComputer drone in allDrones)
+        {
+            drone.droneController.maxSpeed = drone.droneController.maxSpeed * speedMultiplier;
         }
     }
 
-    void FlyToPoint() {
-        return;
-    }
-
-    
 }

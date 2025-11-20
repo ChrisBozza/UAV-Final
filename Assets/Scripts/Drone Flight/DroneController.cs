@@ -87,6 +87,15 @@ public class DroneController : MonoBehaviour {
         return enginePowerWorldSpace;
     }
 
+    public void AddMomentumWorld(Vector3 worldMomentum) {
+        targetVelocity += worldMomentum;
+        targetVelocity = Vector3.ClampMagnitude(targetVelocity, maxSpeed);
+        
+        Vector3 localMomentum = transform.InverseTransformDirection(worldMomentum);
+        enginePower += localMomentum;
+        enginePowerWorldSpace += worldMomentum;
+    }
+
     public void SetMomentum(Vector3 momentum) {
         targetVelocity = momentum;
     }
