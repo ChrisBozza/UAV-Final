@@ -16,11 +16,15 @@ public class AutoSwarm: MonoBehaviour
 
     [Header("Formation System")]
     [SerializeField] TriangleFormationGenerator formationGenerator;
+    [SerializeField] FormationKeeper formationKeeper;
 
     [Header("Special Behaviors")]
     [SerializeField] CheckpointBehaviorHandler behaviorHandler;
     [SerializeField] float hoverHeightAboveLanding = 2f;
     [SerializeField] float stabilizationTime = 1f;
+    [SerializeField] float landingStabilizationRadius = 1f;
+    [SerializeField] float landingStabilizationTime = 1f;
+    [SerializeField] float pauseAfterLandingDuration = 3f;
 
     [Header("Prediction System")]
     [SerializeField] DronePathPredictor pathPredictor;
@@ -49,12 +53,36 @@ public class AutoSwarm: MonoBehaviour
             formationGenerator = gameObject.AddComponent<TriangleFormationGenerator>();
         }
 
+        if (formationKeeper == null)
+        {
+            formationKeeper = gameObject.AddComponent<FormationKeeper>();
+        }
+        formationKeeper.Initialize(drone1, drone2, drone3, formationGenerator);
+
         if (behaviorHandler == null)
         {
             behaviorHandler = gameObject.AddComponent<CheckpointBehaviorHandler>();
         }
 
         StartCoroutine(MissionHandler());
+    }
+
+    public void ReassignDroneRoles(GameObject newLeader, GameObject newLeftWing, GameObject newRightWing)
+    {
+        drone1 = newLeader;
+        drone2 = newLeftWing;
+        drone3 = newRightWing;
+
+        droneComputer1 = drone1.GetComponent<DroneComputer>();
+        droneComputer2 = drone2.GetComponent<DroneComputer>();
+        droneComputer3 = drone3.GetComponent<DroneComputer>();
+
+        allDrones = new DroneComputer[] { droneComputer1, droneComputer2, droneComputer3 };
+
+        if (formationKeeper != null)
+        {
+            formationKeeper.UpdateDroneAssignments(drone1, drone2, drone3);
+        }
     }
 
     private IEnumerator MissionHandler() {
@@ -91,13 +119,27 @@ public class AutoSwarm: MonoBehaviour
     {
         SetNewSwarmTarget(currentCheckpoint, nextCheckpoint);
 
+        if (formationKeeper != null)
+        {
+            formationKeeper.UpdateFormationTarget(currentCheckpoint, nextCheckpoint);
+            formationKeeper.SetFormationKeepingEnabled(true);
+        }
+
         while (!SwarmReachedTarget()) {
             yield return null;
+        }
+
+        if (formationKeeper != null)
+        {
+            formationKeeper.OnCheckpointReached();
+            formationKeeper.SetFormationKeepingEnabled(false);
         }
     }
 
     private IEnumerator HandleTakeoff(CheckpointBehaviorHandler.CheckpointInfo checkpointInfo, Transform nextCheckpoint)
     {
+        PowerOnAllDrones();
+
         float targetHeight = checkpointInfo.takeoffCheckpoint.position.y;
 
         Transform takeoffTarget1 = behaviorHandler.CreateIndividualTakeoffPosition(drone1.transform.position, targetHeight, 0);
@@ -108,6 +150,11 @@ public class AutoSwarm: MonoBehaviour
 
         while (!SwarmReachedTarget()) {
             yield return null;
+        }
+
+        if (formationKeeper != null)
+        {
+            formationKeeper.OnCheckpointReached();
         }
 
         yield return StabilizeSwarm(nextCheckpoint);
@@ -156,13 +203,83 @@ public class AutoSwarm: MonoBehaviour
             yield return null;
         }
 
+        yield return StabilizeForLanding(hoverPositions);
+
         SetIndividualTargets(checkpointInfo.landingPositions[0], checkpointInfo.landingPositions[1], checkpointInfo.landingPositions[2]);
 
         while (!SwarmReachedTarget()) {
             yield return null;
         }
 
+        yield return new WaitForSeconds(0.5f);
+
+        PowerOffAllDrones();
+
+        yield return new WaitForSeconds(pauseAfterLandingDuration);
+
         SetLowSpeedMode(false);
+    }
+
+    private IEnumerator StabilizeForLanding(Transform[] hoverPositions)
+    {
+        float[] timeStablePerDrone = new float[3];
+
+        while (true)
+        {
+            bool allStable = true;
+
+            for (int i = 0; i < 3; i++)
+            {
+                GameObject drone = (i == 0) ? drone1 : (i == 1) ? drone2 : drone3;
+                Transform hoverPos = hoverPositions[i];
+
+                float distance = Vector3.Distance(drone.transform.position, hoverPos.position);
+
+                if (distance <= landingStabilizationRadius)
+                {
+                    timeStablePerDrone[i] += Time.deltaTime;
+
+                    if (timeStablePerDrone[i] < landingStabilizationTime)
+                    {
+                        allStable = false;
+                    }
+                }
+                else
+                {
+                    timeStablePerDrone[i] = 0f;
+                    allStable = false;
+                }
+            }
+
+            if (allStable)
+            {
+                break;
+            }
+
+            yield return null;
+        }
+    }
+
+    private void PowerOffAllDrones()
+    {
+        foreach (DroneComputer drone in allDrones)
+        {
+            if (drone != null && drone.droneController != null)
+            {
+                drone.droneController.PowerOffEngine();
+            }
+        }
+    }
+
+    private void PowerOnAllDrones()
+    {
+        foreach (DroneComputer drone in allDrones)
+        {
+            if (drone != null && drone.droneController != null)
+            {
+                drone.droneController.PowerOnEngine();
+            }
+        }
     }
 
     private void SetAutoPilot(bool status) {

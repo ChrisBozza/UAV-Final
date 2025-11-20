@@ -11,6 +11,7 @@ public class DroneController : MonoBehaviour {
     [Header("Physics Settings")]
     [SerializeField] float forceMultiplier = 100f;
     [SerializeField] float crashGravityForce = 9.81f;
+    [SerializeField] float powerDownGravityForce = 9.81f;
     public float maxSpeed = 3f;
 
     [Header("Drone References")]
@@ -22,6 +23,8 @@ public class DroneController : MonoBehaviour {
     Vector3 targetVelocity;
     Vector3 enginePower;
     Vector3 enginePowerWorldSpace;
+
+    private bool enginePowered = true;
 
     void Awake() {
         rb = GetComponent<Rigidbody>();
@@ -57,10 +60,31 @@ public class DroneController : MonoBehaviour {
         if (blade4) blade4.speed = 0f;
     }
 
+    public void PowerOnEngine() {
+        enginePowered = true;
+        StartBladeAnimation();
+    }
+
+    public void PowerOffEngine() {
+        enginePowered = false;
+        targetVelocity = Vector3.zero;
+        StopBladeAnimation();
+    }
+
+    public bool IsEnginePowered() {
+        return enginePowered;
+    }
+
     void ApplyMovement() {
         if (!rb) return;
+        
         if (droneCrashDetection.HasCrashed()) {
             ApplyCrashedMovement();
+            return;
+        }
+
+        if (!enginePowered) {
+            ApplyPoweredDownMovement();
             return;
         }
 
@@ -71,6 +95,20 @@ public class DroneController : MonoBehaviour {
 
     void ApplyCrashedMovement() {
         rb.AddForce(Vector3.down * crashGravityForce, ForceMode.Acceleration);
+    }
+
+    void ApplyPoweredDownMovement() {
+        targetVelocity = Vector3.zero;
+        
+        Vector3 currentVelocity = rb.linearVelocity;
+        Vector3 horizontalVelocity = new Vector3(currentVelocity.x, 0f, currentVelocity.z);
+        
+        if (horizontalVelocity.sqrMagnitude > 0.01f)
+        {
+            rb.linearVelocity = new Vector3(0f, currentVelocity.y, 0f);
+        }
+        
+        rb.AddForce(Vector3.down * powerDownGravityForce, ForceMode.Acceleration);
     }
 
     public Vector3 GetMomentum() {
