@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Linq;
 using UnityEngine;
 
 public class AutoSwarm: MonoBehaviour
@@ -7,6 +8,9 @@ public class AutoSwarm: MonoBehaviour
     DroneComputer droneComputer1;
     [SerializeField] GameObject checkpointParent;
     private GameObject[] checkpoints;
+
+    [Header("Prediction System")]
+    [SerializeField] DronePathPredictor pathPredictor;
 
     public bool swarmActive = true;
 
@@ -17,6 +21,8 @@ public class AutoSwarm: MonoBehaviour
         for (int i = 0; i < checkpointParent.transform.childCount; i++) {
             checkpoints[i] = checkpointParent.transform.GetChild(i).gameObject;
         }
+        string line = string.Join(", ", checkpoints.Select(c => c.name));
+        Debug.Log(line);
 
         droneComputer1 = drone1.GetComponent<DroneComputer>();
         StartCoroutine(MissionHandler());
@@ -30,11 +36,9 @@ public class AutoSwarm: MonoBehaviour
         for (int i = 0; i < checkpoints.Length; i++) {
             SetNewSwarmTarget(checkpoints[i].transform);
 
-            while (SwarmReachedTarget()) {
-                yield return new WaitForSeconds(0.1f);
+            while (!SwarmReachedTarget()) {
+                yield return null;
             }
-
-            yield return new WaitForSeconds(1f);
         }
 
 
@@ -44,6 +48,11 @@ public class AutoSwarm: MonoBehaviour
 
     private void SetNewSwarmTarget(Transform target) {
         droneComputer1.SetTarget(target);
+        
+        if (pathPredictor != null) {
+            pathPredictor.UpdatePrediction(target);
+        }
+        
         return;
     }
 

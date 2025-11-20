@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Drawing;
 using UnityEngine;
 
 public class DroneComputer : MonoBehaviour
@@ -11,12 +12,18 @@ public class DroneComputer : MonoBehaviour
     public float rotationSpeed = 90f;
     Transform target;
 
+    [Header("Speed Control Settings")]
+    public float minSpeedDistance = 2f;
+    public float maxSpeedDistance = 10f;
+    public float minSpeedMultiplier = 0.3f;
+
 
     void Start()
     {
         droneController = GetComponent<DroneController>();
         droneReady = true;
         StartCoroutine(AutoFly());
+        StartCoroutine(AutoCheck());
     }
 
     IEnumerator AutoFly() {
@@ -30,36 +37,73 @@ public class DroneComputer : MonoBehaviour
         }
     }
 
-    private void MoveTowardsPoint(Transform point) {
-        Vector3 toTarget = point.position - droneController.GetPosition();
-        float dist = toTarget.magnitude;
+    IEnumerator AutoCheck() {
+        while(!droneReady) yield return new WaitForEndOfFrame();
 
-        
-        if (dist < 1f) {
-            reachedTarget = true;
+        while(true) {
+            yield return null;
+            Vector3 toTarget = target.position - droneController.GetPosition();
+            float dist = toTarget.magnitude;
+
+
+            if (dist < 2f) {
+                reachedTarget = true;
+            }
+
         }
+    }
 
+    private void MoveTowardsPoint(Transform point) {
+
+        Vector3 toTarget = target.position - droneController.GetPosition();
+        float distanceToTarget = toTarget.magnitude;
         Vector3 dir = toTarget.normalized;
         Vector3 current = droneController.GetMomentum();
-        float maxSpeed = droneController.maxSpeed;
+        float baseMaxSpeed = droneController.maxSpeed;
+
+        float effectiveMaxSpeed = CalculateEffectiveMaxSpeed(baseMaxSpeed, distanceToTarget);
 
         RotateTowardsTarget(dir);
 
-        Vector3 desiredMomentum = ComputeDesiredMomentum(dir, current, maxSpeed);
+        Vector3 desiredMomentum = ComputeDesiredMomentum(dir, current, effectiveMaxSpeed, distanceToTarget);
         droneController.AddMomentumRelativeToVisual(desiredMomentum, false);
+    }
+
+    private float CalculateEffectiveMaxSpeed(float baseMaxSpeed, float distance) {
+        if (distance >= maxSpeedDistance) {
+            return baseMaxSpeed;
+        }
+        
+        if (distance <= minSpeedDistance) {
+            return baseMaxSpeed * minSpeedMultiplier;
+        }
+        
+        float t = (distance - minSpeedDistance) / (maxSpeedDistance - minSpeedDistance);
+        float speedMultiplier = Mathf.Lerp(minSpeedMultiplier, 1f, t);
+        
+        return baseMaxSpeed * speedMultiplier;
     }
 
     private void RotateTowardsTarget(Vector3 targetDirection) {
         droneController.SetVisualRotation(targetDirection, rotationSpeed);
     }
 
-    private Vector3 ComputeDesiredMomentum(Vector3 dir, Vector3 current, float maxSpeed) {
+    private Vector3 ComputeDesiredMomentum(Vector3 dir, Vector3 current, float maxSpeed, float distanceToTarget) {
         float forwardSpeed = Vector3.Dot(current, dir);
 
         if (forwardSpeed >= maxSpeed)
+        {
+            if (distanceToTarget < minSpeedDistance && forwardSpeed > maxSpeed * 0.5f) {
+                return -dir * 5f * Time.deltaTime;
+            }
             return Vector3.zero;
+        }
 
         float accel = 10f;
+
+        if (distanceToTarget < minSpeedDistance * 1.5f) {
+            accel = 5f;
+        }
 
         Vector3 accelVector = dir * accel * Time.deltaTime;
 
@@ -87,5 +131,9 @@ public class DroneComputer : MonoBehaviour
     public void SetTarget(Transform t) {
         reachedTarget = false;
         target = t;
+    }
+
+    public Transform GetCurrentTarget() {
+        return target;
     }
 }
