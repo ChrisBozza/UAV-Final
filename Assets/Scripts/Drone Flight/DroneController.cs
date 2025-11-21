@@ -88,6 +88,8 @@ public class DroneController : MonoBehaviour {
             return;
         }
 
+        EnforceSpeedLimit();
+
         Vector3 velocityDifference = targetVelocity - rb.linearVelocity;
         Vector3 force = velocityDifference * forceMultiplier;
         rb.AddForce(force, ForceMode.Force);
@@ -109,6 +111,18 @@ public class DroneController : MonoBehaviour {
         }
         
         rb.AddForce(Vector3.down * powerDownGravityForce, ForceMode.Acceleration);
+    }
+
+    void EnforceSpeedLimit() {
+        if (!rb) return;
+
+        Vector3 currentVelocity = rb.linearVelocity;
+        float currentSpeed = currentVelocity.magnitude;
+
+        if (currentSpeed > maxSpeed) {
+            Vector3 limitedVelocity = currentVelocity.normalized * maxSpeed;
+            rb.linearVelocity = limitedVelocity;
+        }
     }
 
     public Vector3 GetMomentum() {

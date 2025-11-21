@@ -39,8 +39,8 @@ public class AutoSwarm: MonoBehaviour
         for (int i = 0; i < checkpointParent.transform.childCount; i++) {
             checkpoints[i] = checkpointParent.transform.GetChild(i).gameObject;
         }
-        string line = string.Join(", ", checkpoints.Select(c => c.name));
-        Debug.Log(line);
+        // string line = string.Join(", ", checkpoints.Select(c => c.name));
+        // Debug.Log(line);
 
         droneComputer1 = drone1.GetComponent<DroneComputer>();
         droneComputer2 = drone2.GetComponent<DroneComputer>();
