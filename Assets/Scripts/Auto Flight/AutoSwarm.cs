@@ -264,9 +264,9 @@ public class AutoSwarm: MonoBehaviour
     {
         foreach (DroneComputer drone in allDrones)
         {
-            if (drone != null && drone.droneController != null)
+            if (drone != null)
             {
-                drone.droneController.PowerOffEngine();
+                drone.PowerOffEngine();
             }
         }
     }
@@ -275,9 +275,9 @@ public class AutoSwarm: MonoBehaviour
     {
         foreach (DroneComputer drone in allDrones)
         {
-            if (drone != null && drone.droneController != null)
+            if (drone != null)
             {
-                drone.droneController.PowerOnEngine();
+                drone.PowerOnEngine();
             }
         }
     }
@@ -323,7 +323,10 @@ public class AutoSwarm: MonoBehaviour
         
         foreach (DroneComputer drone in allDrones)
         {
-            drone.droneController.maxSpeed = drone.droneController.maxSpeed * speedMultiplier;
+            if (drone != null)
+            {
+                drone.SetSpeedMultiplier(speedMultiplier);
+            }
         }
     }
 

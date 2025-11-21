@@ -146,7 +146,7 @@ public class FormationKeeper : MonoBehaviour
             float excessDistance = maxLagDistance - slowdownThreshold;
             float dragMultiplier = Mathf.Clamp01(excessDistance / slowdownThreshold);
 
-            Vector3 leaderVelocity = leaderComputer.droneController.GetMomentum();
+            Vector3 leaderVelocity = leaderComputer.GetVelocity();
             Vector3 dragForce = -leaderVelocity.normalized * dragMultiplier * slowdownStrength * Time.fixedDeltaTime;
 
             leaderComputer.AddMomentum(dragForce);

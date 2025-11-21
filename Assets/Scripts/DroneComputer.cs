@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Drawing;
 using UnityEngine;
 
 public class DroneComputer : MonoBehaviour
@@ -16,14 +15,31 @@ public class DroneComputer : MonoBehaviour
     public float minSpeedDistance = 2f;
     public float maxSpeedDistance = 10f;
     public float minSpeedMultiplier = 0.3f;
+    private float baseMaxSpeed;
+    
+    [Header("Formation Keeping")]
+    public bool formationKeepingEnabled = false;
+    public Vector3 formationOffset = Vector3.zero;
+    public float formationCorrectionStrength = 2f;
+    public float maxFormationCorrectionForce = 1f;
+    private Transform formationLeader;
 
 
     void Start()
     {
         droneController = GetComponent<DroneController>();
+        baseMaxSpeed = droneController.maxSpeed;
         droneReady = true;
         StartCoroutine(AutoFly());
         StartCoroutine(AutoCheck());
+    }
+    
+    void FixedUpdate()
+    {
+        if (formationKeepingEnabled && formationLeader != null)
+        {
+            ApplyFormationCorrection();
+        }
     }
 
     IEnumerator AutoFly() {
@@ -59,9 +75,9 @@ public class DroneComputer : MonoBehaviour
         float distanceToTarget = toTarget.magnitude;
         Vector3 dir = toTarget.normalized;
         Vector3 current = droneController.GetMomentum();
-        float baseMaxSpeed = droneController.maxSpeed;
+        float currentMaxSpeed = droneController.maxSpeed;
 
-        float effectiveMaxSpeed = CalculateEffectiveMaxSpeed(baseMaxSpeed, distanceToTarget);
+        float effectiveMaxSpeed = CalculateEffectiveMaxSpeed(currentMaxSpeed, distanceToTarget);
 
         if (!reachedTarget) {
             RotateTowardsTarget(dir);
@@ -142,5 +158,83 @@ public class DroneComputer : MonoBehaviour
 
     public Transform GetCurrentTarget() {
         return target;
+    }
+    
+    public void PowerOnEngine()
+    {
+        if (!droneReady) return;
+        droneController.PowerOnEngine();
+    }
+    
+    public void PowerOffEngine()
+    {
+        if (!droneReady) return;
+        droneController.PowerOffEngine();
+    }
+    
+    public bool IsEnginePowered()
+    {
+        if (!droneReady) return false;
+        return droneController.IsEnginePowered();
+    }
+    
+    public void SetMaxSpeed(float speed)
+    {
+        if (!droneReady) return;
+        droneController.maxSpeed = speed;
+    }
+    
+    public void SetSpeedMultiplier(float multiplier)
+    {
+        if (!droneReady) return;
+        droneController.maxSpeed = baseMaxSpeed * multiplier;
+    }
+    
+    public float GetMaxSpeed()
+    {
+        if (!droneReady) return 0f;
+        return droneController.maxSpeed;
+    }
+    
+    public Vector3 GetPosition()
+    {
+        if (!droneReady) return Vector3.zero;
+        return droneController.GetPosition();
+    }
+    
+    public Vector3 GetVelocity()
+    {
+        if (!droneReady) return Vector3.zero;
+        return droneController.GetVelocity();
+    }
+    
+    public void SetFormationKeepingEnabled(bool enabled)
+    {
+        formationKeepingEnabled = enabled;
+    }
+    
+    public void SetFormationOffset(Vector3 offset, Transform leader)
+    {
+        formationOffset = offset;
+        formationLeader = leader;
+    }
+    
+    private void ApplyFormationCorrection()
+    {
+        if (formationLeader == null) return;
+        
+        Vector3 idealPosition = formationLeader.position + formationOffset;
+        Vector3 currentPosition = droneController.GetPosition();
+        Vector3 offset = idealPosition - currentPosition;
+        
+        float horizontalOffsetMagnitude = new Vector3(offset.x, 0f, offset.z).magnitude;
+        
+        if (horizontalOffsetMagnitude > 0.5f)
+        {
+            Vector3 correctionForce = offset * formationCorrectionStrength * Time.fixedDeltaTime;
+            correctionForce = Vector3.ClampMagnitude(correctionForce, maxFormationCorrectionForce * Time.fixedDeltaTime);
+            
+            AddMomentum(correctionForce);
+        }
     }
 }
