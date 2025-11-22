@@ -66,15 +66,9 @@ public class DroneComputer : MonoBehaviour
                 float dist = toTarget.magnitude;
 
                 if (dist < 2f) {
-                    if (!reachedTarget) {
-                        Debug.Log($"[{gameObject.name}] Target REACHED at distance {dist:F2}m");
-                    }
                     reachedTarget = true;
                 }
                 else if (dist > 3f) {
-                    if (reachedTarget) {
-                        Debug.Log($"[{gameObject.name}] Target RESET at distance {dist:F2}m");
-                    }
                     reachedTarget = false;
                 }
             }
@@ -166,7 +160,6 @@ public class DroneComputer : MonoBehaviour
     public void SetTarget(Transform t) {
         target = t;
         targetPosition = null;
-        Debug.Log($"[{gameObject.name}] SetTarget called. Position: {t?.position}, Flag reset to false");
         reachedTarget = false;
     }
 
@@ -174,7 +167,6 @@ public class DroneComputer : MonoBehaviour
     {
         target = null;
         targetPosition = position;
-        Debug.Log($"[{gameObject.name}] SetTargetPosition called. Position: {position}, Flag reset to false");
         reachedTarget = false;
     }
 
@@ -183,7 +175,6 @@ public class DroneComputer : MonoBehaviour
         target = null;
         targetPosition = null;
         reachedTarget = false;
-        Debug.Log($"[{gameObject.name}] Target cleared. Flag reset to false");
     }
 
     public Transform GetCurrentTarget() {

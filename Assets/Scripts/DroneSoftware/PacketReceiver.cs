@@ -9,10 +9,17 @@ public class PacketReceiver : MonoBehaviour
     [Header("Packet Processing")]
     public bool logReceivedPackets = false;
     public bool logIgnoredPackets = false;
+    public bool logAcknowledgments = false;
+
+    [Header("DDoS Simulation")]
+    public bool enableDDoSSimulation = false;
+    [Range(0f, 1f)]
+    public float packetDropRate = 0f;
 
     private DroneComputer droneComputer;
     private FormationKeeper formationKeeper;
     private Queue<Packet> packetQueue = new Queue<Packet>();
+    private HashSet<long> processedSequenceNumbers = new HashSet<long>();
 
     private bool registered = false;
 
@@ -61,16 +68,77 @@ public class PacketReceiver : MonoBehaviour
     {
         if (packet.IsForRecipient(receiverId))
         {
+            if (packet.IsAck())
+            {
+                HandleAckPacket(packet);
+                return;
+            }
+
+            if (enableDDoSSimulation && packetDropRate > 0f)
+            {
+                if (Random.value < packetDropRate)
+                {
+                    if (logReceivedPackets)
+                    {
+                        Debug.LogWarning($"[{receiverId}] Dropped packet (DDoS): {packet}");
+                    }
+                    return;
+                }
+            }
+
             if (logReceivedPackets)
             {
                 Debug.Log($"[{receiverId}] Received: {packet}");
             }
 
+            if (packet.requiresAck && PacketHandler.Instance != null && PacketHandler.Instance.enableAckSystem)
+            {
+                SendAcknowledgment(packet);
+            }
+
+            if (processedSequenceNumbers.Contains(packet.sequenceNumber))
+            {
+                if (logReceivedPackets)
+                {
+                    Debug.Log($"[{receiverId}] Duplicate packet detected (seq: {packet.sequenceNumber}), ignoring.");
+                }
+                return;
+            }
+
+            processedSequenceNumbers.Add(packet.sequenceNumber);
             packetQueue.Enqueue(packet);
         }
         else if (logIgnoredPackets)
         {
             Debug.Log($"[{receiverId}] Ignored packet for: {packet.recipient}");
+        }
+    }
+
+    private void HandleAckPacket(Packet ackPacket)
+    {
+        if (PacketHandler.Instance != null)
+        {
+            PacketHandler.Instance.ReceiveAcknowledgment(ackPacket.ackForPacketId, ackPacket.sender);
+
+            if (logAcknowledgments)
+            {
+                Debug.Log($"[{receiverId}] Forwarded ACK from {ackPacket.sender} for packet {ackPacket.ackForPacketId}");
+            }
+        }
+    }
+
+    private void SendAcknowledgment(Packet originalPacket)
+    {
+        Packet ack = Packet.CreateAck(receiverId, originalPacket.sender, originalPacket.packetId, originalPacket.sequenceNumber);
+
+        if (PacketHandler.Instance != null)
+        {
+            PacketHandler.Instance.BroadcastPacket(ack);
+
+            if (logAcknowledgments)
+            {
+                Debug.Log($"[{receiverId}] Sent ACK to {originalPacket.sender} for packet {originalPacket.packetId} (seq: {originalPacket.sequenceNumber})");
+            }
         }
     }
 

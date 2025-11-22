@@ -181,7 +181,6 @@ public class AutoSwarm: MonoBehaviour
 
     private IEnumerator HandleNormalCheckpoint(Transform currentCheckpoint, Transform nextCheckpoint)
     {
-        Debug.Log($"[AutoSwarm] HandleNormalCheckpoint START: {currentCheckpoint.name}");
         SetNewSwarmTarget(currentCheckpoint, nextCheckpoint);
 
         Vector3 directionToNext = nextCheckpoint != null 
@@ -190,16 +189,10 @@ public class AutoSwarm: MonoBehaviour
 
         ConfigureFormation(directionToNext, true);
 
-        int frameCount = 0;
         while (!SwarmReachedTarget()) {
-            if (frameCount % 60 == 0) {
-                Debug.Log($"[AutoSwarm] Waiting for swarm... Flags: D1={droneComputer1.reachedTarget}, D2={droneComputer2.reachedTarget}, D3={droneComputer3.reachedTarget}");
-            }
-            frameCount++;
             yield return null;
         }
 
-        Debug.Log($"[AutoSwarm] All drones reached target! Flags: D1={droneComputer1.reachedTarget}, D2={droneComputer2.reachedTarget}, D3={droneComputer3.reachedTarget}");
         ConfigureFormation(directionToNext, false);
     }
 
@@ -435,8 +428,6 @@ public class AutoSwarm: MonoBehaviour
     {
         Transform[] formationTargets = formationGenerator.GenerateFormationTransforms(currentCheckpoint, nextCheckpoint);
         
-        Debug.Log($"[AutoSwarm] Setting new swarm targets. Flags BEFORE: D1={droneComputer1.reachedTarget}, D2={droneComputer2.reachedTarget}, D3={droneComputer3.reachedTarget}");
-        
         if (usePacketCommunication)
         {
             droneComputer1.ClearTarget();
@@ -453,8 +444,6 @@ public class AutoSwarm: MonoBehaviour
             droneComputer2.SetTarget(formationTargets[1]);
             droneComputer3.SetTarget(formationTargets[2]);
         }
-        
-        Debug.Log($"[AutoSwarm] Flags AFTER target set: D1={droneComputer1.reachedTarget}, D2={droneComputer2.reachedTarget}, D3={droneComputer3.reachedTarget}");
         
         if (pathPredictor != null) {
             pathPredictor.UpdatePrediction(currentCheckpoint);

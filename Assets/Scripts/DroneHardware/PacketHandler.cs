@@ -14,13 +14,24 @@ public class PacketHandler : MonoBehaviour
     public float propagationSpeed = 343f;
     public bool visualizeTransmissions = false;
 
+    [Header("ACK System")]
+    public bool enableAckSystem = true;
+    public bool logAcknowledgments = false;
+    public float ackTimeout = 2.0f;
+    public int maxRetries = 3;
+
     [Header("Statistics")]
     public int totalPacketsSent = 0;
     public int totalPacketsDelivered = 0;
+    public int totalAcksReceived = 0;
+    public int totalPacketsDropped = 0;
+    public int totalRetransmissions = 0;
 
     private List<PacketReceiver> receivers = new List<PacketReceiver>();
     private List<DelayedPacketDelivery> delayedPackets = new List<DelayedPacketDelivery>();
     private Dictionary<string, Transform> senderTransforms = new Dictionary<string, Transform>();
+    private Dictionary<string, PacketAcknowledgment> pendingAcks = new Dictionary<string, PacketAcknowledgment>();
+    private long nextSequenceNumber = 0;
 
     private class DelayedPacketDelivery
     {
@@ -54,6 +65,7 @@ public class PacketHandler : MonoBehaviour
     void Update()
     {
         ProcessDelayedPackets();
+        ProcessPendingAcknowledgments();
     }
 
     public void RegisterReceiver(PacketReceiver receiver)
@@ -95,6 +107,11 @@ public class PacketHandler : MonoBehaviour
             return;
         }
 
+        if (packet.sequenceNumber == -1)
+        {
+            packet.sequenceNumber = nextSequenceNumber++;
+        }
+
         totalPacketsSent++;
 
         if (logAllPackets)
@@ -103,33 +120,52 @@ public class PacketHandler : MonoBehaviour
         }
 
         Vector3 senderPosition = GetSenderPosition(packet.sender);
+        List<string> receiversExpectingAck = new List<string>();
 
         foreach (PacketReceiver receiver in receivers)
         {
             if (receiver == null) continue;
 
-            Vector3 receiverPosition = receiver.transform.position;
-            float distance = Vector3.Distance(senderPosition, receiverPosition);
-
-            float delay = CalculateTransmissionDelay(distance);
-
-            if (visualizeTransmissions)
+            if (packet.IsForRecipient(receiver.receiverId))
             {
-                Debug.DrawLine(senderPosition, receiverPosition, Color.cyan, delay);
+                Vector3 receiverPosition = receiver.transform.position;
+                float distance = Vector3.Distance(senderPosition, receiverPosition);
+                float delay = CalculateTransmissionDelay(distance);
+
+                if (visualizeTransmissions)
+                {
+                    Debug.DrawLine(senderPosition, receiverPosition, Color.cyan, delay);
+                }
+
+                DelayedPacketDelivery delivery = new DelayedPacketDelivery(
+                    packet,
+                    receiver,
+                    Time.time + delay,
+                    distance
+                );
+
+                delayedPackets.Add(delivery);
+
+                if (enableAckSystem && packet.requiresAck && !packet.IsAck())
+                {
+                    receiversExpectingAck.Add(receiver.receiverId);
+                }
+
+                if (logAllPackets)
+                {
+                    Debug.Log($"[PacketHandler] Scheduled delivery: {packet.sender} -> {receiver.receiverId} (distance: {distance:F1}m, delay: {delay * 1000f:F2}ms)");
+                }
             }
+        }
 
-            DelayedPacketDelivery delivery = new DelayedPacketDelivery(
-                packet, 
-                receiver, 
-                Time.time + delay,
-                distance
-            );
-            
-            delayedPackets.Add(delivery);
+        if (enableAckSystem && packet.requiresAck && !packet.IsAck() && receiversExpectingAck.Count > 0)
+        {
+            PacketAcknowledgment ackTracker = new PacketAcknowledgment(packet, receiversExpectingAck);
+            pendingAcks[packet.packetId] = ackTracker;
 
-            if (logAllPackets)
+            if (logAcknowledgments)
             {
-                Debug.Log($"[PacketHandler] Scheduled delivery: {packet.sender} -> {receiver.receiverId} (distance: {distance:F1}m, delay: {delay * 1000f:F2}ms)");
+                Debug.Log($"[PacketHandler] Waiting for ACKs from {receiversExpectingAck.Count} receivers for packet {packet.packetId}");
             }
         }
     }
@@ -191,6 +227,9 @@ public class PacketHandler : MonoBehaviour
     {
         totalPacketsSent = 0;
         totalPacketsDelivered = 0;
+        totalAcksReceived = 0;
+        totalPacketsDropped = 0;
+        totalRetransmissions = 0;
     }
 
     public void RegisterSender(string senderId, Transform senderTransform)
@@ -209,5 +248,97 @@ public class PacketHandler : MonoBehaviour
             senderTransforms.Remove(senderId);
             Debug.Log($"[PacketHandler] Unregistered sender: {senderId}");
         }
+    }
+
+    public void ReceiveAcknowledgment(string packetId, string receiverId)
+    {
+        if (pendingAcks.ContainsKey(packetId))
+        {
+            PacketAcknowledgment ackTracker = pendingAcks[packetId];
+            ackTracker.MarkAcknowledged(receiverId);
+            totalAcksReceived++;
+
+            if (logAcknowledgments)
+            {
+                Debug.Log($"[PacketHandler] ACK received from {receiverId} for packet {packetId}. Remaining: {ackTracker.pendingReceivers.Count}");
+            }
+
+            if (ackTracker.IsAcknowledged())
+            {
+                pendingAcks.Remove(packetId);
+
+                if (logAcknowledgments)
+                {
+                    Debug.Log($"[PacketHandler] All ACKs received for packet {packetId}. Age: {ackTracker.GetAge():F3}s");
+                }
+            }
+        }
+    }
+
+    private void ProcessPendingAcknowledgments()
+    {
+        List<string> toRemove = new List<string>();
+
+        foreach (var kvp in pendingAcks)
+        {
+            PacketAcknowledgment ackTracker = kvp.Value;
+
+            if (ackTracker.ShouldRetry())
+            {
+                ackTracker.IncrementRetry();
+                totalRetransmissions++;
+
+                if (logAcknowledgments)
+                {
+                    Debug.LogWarning($"[PacketHandler] Retransmitting packet {kvp.Key} (attempt {ackTracker.retryCount}/{maxRetries}). Missing ACKs from: {string.Join(", ", ackTracker.pendingReceivers)}");
+                }
+
+                Packet retransmitPacket = ackTracker.packet;
+                Vector3 senderPosition = GetSenderPosition(retransmitPacket.sender);
+
+                foreach (string receiverId in ackTracker.pendingReceivers)
+                {
+                    PacketReceiver receiver = receivers.Find(r => r != null && r.receiverId == receiverId);
+                    if (receiver != null)
+                    {
+                        Vector3 receiverPosition = receiver.transform.position;
+                        float distance = Vector3.Distance(senderPosition, receiverPosition);
+                        float delay = CalculateTransmissionDelay(distance);
+
+                        DelayedPacketDelivery delivery = new DelayedPacketDelivery(
+                            retransmitPacket,
+                            receiver,
+                            Time.time + delay,
+                            distance
+                        );
+
+                        delayedPackets.Add(delivery);
+                    }
+                }
+            }
+
+            if (ackTracker.HasExpired())
+            {
+                totalPacketsDropped++;
+                toRemove.Add(kvp.Key);
+
+                Debug.LogError($"[PacketHandler] Packet {kvp.Key} dropped after {maxRetries} retries. No ACK from: {string.Join(", ", ackTracker.pendingReceivers)}");
+            }
+        }
+
+        foreach (string packetId in toRemove)
+        {
+            pendingAcks.Remove(packetId);
+        }
+    }
+
+    public int GetPendingAckCount()
+    {
+        return pendingAcks.Count;
+    }
+
+    public Dictionary<string, PacketAcknowledgment> GetPendingAcks()
+    {
+        return new Dictionary<string, PacketAcknowledgment>(pendingAcks);
     }
 }
