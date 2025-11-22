@@ -33,7 +33,7 @@ public class AutoSwarm: MonoBehaviour
 
     [Header("Packet Communication")]
     [SerializeField] bool usePacketCommunication = true;
-    [SerializeField] ProcessingMethod packetProcessingMethod = ProcessingMethod.Simple;
+    [SerializeField] ProcessingMethod packetProcessingMethod = ProcessingMethod.Normal;
 
     [Header("Checkpoint Optimization")]
     [SerializeField] float duplicateCheckpointThreshold = 0.1f;

@@ -3,18 +3,25 @@ using System.Collections;
 
 public enum ProcessingMethod
 {
-    Simple,
-    Novel
+    Normal,
+    StandardDDoS,
+    NovelDDoS
 }
 
 public class PacketProcessor : MonoBehaviour
 {
     [Header("Processing Configuration")]
-    public ProcessingMethod processingMethod = ProcessingMethod.Simple;
+    public ProcessingMethod processingMethod = ProcessingMethod.Normal;
     
-    [Header("Processing Rates")]
-    public float simplePacketsPerSecond = 100f;
-    public float novelPacketsPerSecond = 200f;
+    [Header("Processing Rates (packets/second)")]
+    [Tooltip("Normal operations: Fast forwarding without deep inspection")]
+    public float normalPacketsPerSecond = 200f;
+    
+    [Tooltip("Standard DDoS: Connection tracking + stateful inspection overhead.\nBased on maintaining connection tables and checking for unacknowledged packets.\nReal hardware can do millions/sec, but scaled down for simulation.")]
+    public float standardDDoSPacketsPerSecond = 50f;
+    
+    [Tooltip("Novel DDoS: Your custom mitigation approach (placeholder for now)")]
+    public float novelDDoSPacketsPerSecond = 150f;
 
     [Header("Debug")]
     public bool logProcessingTimes = false;
@@ -37,7 +44,8 @@ public class PacketProcessor : MonoBehaviour
 
         if (logProcessingTimes)
         {
-            Debug.Log($"[PacketProcessor] Processing packet {packet.packetId} using {processingMethod} method (wait: {processingTime:F4}s)");
+            float packetsPerSec = 1f / processingTime;
+            Debug.Log($"[PacketProcessor] Processing packet {packet.packetId} using {processingMethod} method (time: {processingTime:F4}s, rate: {packetsPerSec:F1} pkt/s)");
         }
 
         yield return new WaitForSeconds(processingTime);
@@ -50,24 +58,32 @@ public class PacketProcessor : MonoBehaviour
     {
         switch (processingMethod)
         {
-            case ProcessingMethod.Simple:
-                return ProcessSimple();
+            case ProcessingMethod.Normal:
+                return ProcessNormal();
             
-            case ProcessingMethod.Novel:
-                return ProcessNovel();
+            case ProcessingMethod.StandardDDoS:
+                return ProcessStandardDDoS();
+            
+            case ProcessingMethod.NovelDDoS:
+                return ProcessNovelDDoS();
             
             default:
-                return ProcessSimple();
+                return ProcessNormal();
         }
     }
 
-    private float ProcessSimple()
+    private float ProcessNormal()
     {
-        return 1f / simplePacketsPerSecond;
+        return 1f / normalPacketsPerSecond;
     }
 
-    private float ProcessNovel()
+    private float ProcessStandardDDoS()
     {
-        return 1f / novelPacketsPerSecond;
+        return 1f / standardDDoSPacketsPerSecond;
+    }
+
+    private float ProcessNovelDDoS()
+    {
+        return 1f / novelDDoSPacketsPerSecond;
     }
 }
