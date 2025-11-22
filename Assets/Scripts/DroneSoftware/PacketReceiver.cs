@@ -10,6 +10,11 @@ public class PacketReceiver : MonoBehaviour
     public bool logReceivedPackets = false;
     public bool logIgnoredPackets = false;
     public bool logAcknowledgments = false;
+    public bool enableProcessingSimulation = true;
+
+    [Header("Queue Management")]
+    public int maxQueueSize = 20000;
+    public bool logQueueOverflow = true;
 
     [Header("DDoS Simulation")]
     public bool enableDDoSSimulation = false;
@@ -18,8 +23,11 @@ public class PacketReceiver : MonoBehaviour
 
     private DroneComputer droneComputer;
     private FormationKeeper formationKeeper;
+    private PacketProcessor packetProcessor;
     private Queue<Packet> packetQueue = new Queue<Packet>();
+    private Queue<Packet> pendingAckQueue = new Queue<Packet>();
     private HashSet<long> processedSequenceNumbers = new HashSet<long>();
+    private int droppedPacketsCount = 0;
 
     private bool registered = false;
 
@@ -27,6 +35,12 @@ public class PacketReceiver : MonoBehaviour
     {
         droneComputer = GetComponent<DroneComputer>();
         formationKeeper = GetComponent<FormationKeeper>();
+        packetProcessor = GetComponent<PacketProcessor>();
+
+        if (enableProcessingSimulation && packetProcessor == null)
+        {
+            packetProcessor = gameObject.AddComponent<PacketProcessor>();
+        }
 
         if (string.IsNullOrEmpty(receiverId))
         {
@@ -61,6 +75,7 @@ public class PacketReceiver : MonoBehaviour
 
     void Update()
     {
+        ProcessPendingAcks();
         ProcessPacketQueue();
     }
 
@@ -87,7 +102,25 @@ public class PacketReceiver : MonoBehaviour
 
             if (packet.requiresAck && PacketHandler.Instance != null && PacketHandler.Instance.enableAckSystem)
             {
-                SendAcknowledgment(packet);
+                if (enableProcessingSimulation && packetProcessor != null)
+                {
+                    if (pendingAckQueue.Count < maxQueueSize)
+                    {
+                        pendingAckQueue.Enqueue(packet);
+                    }
+                    else
+                    {
+                        droppedPacketsCount++;
+                        if (logQueueOverflow)
+                        {
+                            Debug.LogWarning($"[{receiverId}] Queue full ({pendingAckQueue.Count}/{maxQueueSize}). Dropped packet {packet.packetId} (total dropped: {droppedPacketsCount})");
+                        }
+                    }
+                }
+                else
+                {
+                    SendAcknowledgment(packet);
+                }
             }
 
             if (processedSequenceNumbers.Contains(packet.sequenceNumber))
@@ -105,6 +138,25 @@ public class PacketReceiver : MonoBehaviour
         else if (logIgnoredPackets)
         {
             Debug.Log($"[{receiverId}] Ignored packet for: {packet.recipient}");
+        }
+    }
+
+    private void OnPacketProcessed(Packet processedPacket)
+    {
+        SendAcknowledgment(processedPacket);
+    }
+
+    private void ProcessPendingAcks()
+    {
+        if (!enableProcessingSimulation || packetProcessor == null)
+        {
+            return;
+        }
+
+        if (pendingAckQueue.Count > 0 && !packetProcessor.IsProcessing)
+        {
+            Packet packet = pendingAckQueue.Dequeue();
+            packetProcessor.ProcessPacket(packet, OnPacketProcessed);
         }
     }
 
@@ -330,5 +382,20 @@ public class PacketReceiver : MonoBehaviour
         {
             Debug.LogError($"[{receiverId}] PacketHandler not found! Cannot send packet.");
         }
+    }
+
+    public int GetPendingAckQueueSize()
+    {
+        return pendingAckQueue.Count;
+    }
+
+    public int GetDroppedPacketsCount()
+    {
+        return droppedPacketsCount;
+    }
+
+    public float GetQueueUtilization()
+    {
+        return (float)pendingAckQueue.Count / maxQueueSize;
     }
 }

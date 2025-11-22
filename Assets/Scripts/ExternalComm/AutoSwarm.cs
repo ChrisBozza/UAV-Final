@@ -33,6 +33,7 @@ public class AutoSwarm: MonoBehaviour
 
     [Header("Packet Communication")]
     [SerializeField] bool usePacketCommunication = true;
+    [SerializeField] ProcessingMethod packetProcessingMethod = ProcessingMethod.Simple;
 
     [Header("Checkpoint Optimization")]
     [SerializeField] float duplicateCheckpointThreshold = 0.1f;
@@ -82,6 +83,8 @@ public class AutoSwarm: MonoBehaviour
             {
                 Debug.Log($"[AutoSwarm] Packet communication enabled. Receiver IDs: {packetReceiver1.receiverId}, {packetReceiver2.receiverId}, {packetReceiver3.receiverId}");
                 Debug.Log($"[AutoSwarm] AutoSwarm receiver ID: {autoSwarmReceiver.receiverId}");
+                
+                SetPacketProcessingMethod(packetProcessingMethod);
             }
         }
 
@@ -548,6 +551,28 @@ public class AutoSwarm: MonoBehaviour
         string data = $"{target.position.x},{target.position.y},{target.position.z}";
         Debug.Log($"[AutoSwarm] Sending set_target packet to {receiver.receiverId} → position {target.position}");
         SendPacketToDrone(receiver, "set_target", data);
+    }
+
+    private void SetPacketProcessingMethod(ProcessingMethod method)
+    {
+        PacketProcessor processor1 = drone1.GetComponent<PacketProcessor>();
+        PacketProcessor processor2 = drone2.GetComponent<PacketProcessor>();
+        PacketProcessor processor3 = drone3.GetComponent<PacketProcessor>();
+        PacketProcessor autoSwarmProcessor = GetComponent<PacketProcessor>();
+
+        if (processor1 != null)
+            processor1.processingMethod = method;
+        
+        if (processor2 != null)
+            processor2.processingMethod = method;
+        
+        if (processor3 != null)
+            processor3.processingMethod = method;
+        
+        if (autoSwarmProcessor != null)
+            autoSwarmProcessor.processingMethod = method;
+
+        Debug.Log($"[AutoSwarm] Set packet processing method to {method} for all drones");
     }
 
 }
