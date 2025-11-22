@@ -5,8 +5,12 @@ public class PacketHandler : MonoBehaviour
 {
     public static PacketHandler Instance { get; private set; }
 
+    public delegate void PacketBroadcastHandler(Packet packet);
+    public event PacketBroadcastHandler OnPacketBroadcast;
+
     [Header("Broadcast Settings")]
     public bool logAllPackets = false;
+    public bool logEventSubscribers = false;
     public float signalDelay = 0f;
 
     [Header("Distance-Based Delay")]
@@ -114,6 +118,14 @@ public class PacketHandler : MonoBehaviour
         }
 
         totalPacketsSent++;
+
+        if (logEventSubscribers && OnPacketBroadcast != null)
+        {
+            int subscriberCount = OnPacketBroadcast.GetInvocationList().Length;
+            Debug.Log($"[PacketHandler] Broadcasting to {subscriberCount} subscriber(s)");
+        }
+
+        OnPacketBroadcast?.Invoke(packet);
 
         if (logAllPackets)
         {
