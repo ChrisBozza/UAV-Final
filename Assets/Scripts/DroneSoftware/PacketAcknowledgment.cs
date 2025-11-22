@@ -8,17 +8,18 @@ public class PacketAcknowledgment
     public float sentTime;
     public int retryCount;
     public float nextRetryTime;
+    public float ackTimeout;
+    public int maxRetries;
 
-    private const float ACK_TIMEOUT = 2.0f;
-    private const int MAX_RETRIES = 3;
-
-    public PacketAcknowledgment(Packet packet, List<string> receivers)
+    public PacketAcknowledgment(Packet packet, List<string> receivers, float ackTimeout, int maxRetries)
     {
         this.packet = packet;
         this.pendingReceivers = new List<string>(receivers);
         this.sentTime = Time.time;
         this.retryCount = 0;
-        this.nextRetryTime = Time.time + ACK_TIMEOUT;
+        this.ackTimeout = ackTimeout;
+        this.maxRetries = maxRetries;
+        this.nextRetryTime = Time.time + ackTimeout;
     }
 
     public bool IsAcknowledged()
@@ -28,7 +29,7 @@ public class PacketAcknowledgment
 
     public bool ShouldRetry()
     {
-        return Time.time >= nextRetryTime && retryCount < MAX_RETRIES;
+        return Time.time >= nextRetryTime && retryCount < maxRetries;
     }
 
     public void MarkAcknowledged(string receiverId)
@@ -39,12 +40,12 @@ public class PacketAcknowledgment
     public void IncrementRetry()
     {
         retryCount++;
-        nextRetryTime = Time.time + ACK_TIMEOUT;
+        nextRetryTime = Time.time + ackTimeout;
     }
 
     public bool HasExpired()
     {
-        return retryCount >= MAX_RETRIES;
+        return retryCount >= maxRetries;
     }
 
     public float GetAge()

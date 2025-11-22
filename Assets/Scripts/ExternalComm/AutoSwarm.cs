@@ -43,6 +43,7 @@ public class AutoSwarm: MonoBehaviour
     private PacketReceiver packetReceiver1;
     private PacketReceiver packetReceiver2;
     private PacketReceiver packetReceiver3;
+    private PacketReceiver autoSwarmReceiver;
     private System.Collections.Generic.List<Vector3> visitedCheckpointPositions = new System.Collections.Generic.List<Vector3>();
 
     void Start()
@@ -61,19 +62,26 @@ public class AutoSwarm: MonoBehaviour
         packetReceiver1 = drone1.GetComponent<PacketReceiver>();
         packetReceiver2 = drone2.GetComponent<PacketReceiver>();
         packetReceiver3 = drone3.GetComponent<PacketReceiver>();
+        autoSwarmReceiver = GetComponent<PacketReceiver>();
 
-        if (usePacketCommunication && (packetReceiver1 == null || packetReceiver2 == null || packetReceiver3 == null))
+        if (usePacketCommunication)
         {
-            Debug.LogWarning("[AutoSwarm] Packet communication enabled but not all drones have PacketReceiver. Falling back to direct access.");
-            usePacketCommunication = false;
-        }
-        else if (usePacketCommunication)
-        {
-            Debug.Log($"[AutoSwarm] Packet communication enabled. Receiver IDs: {packetReceiver1.receiverId}, {packetReceiver2.receiverId}, {packetReceiver3.receiverId}");
-            
-            if (PacketHandler.Instance != null)
+            if (packetReceiver1 == null || packetReceiver2 == null || packetReceiver3 == null)
             {
-                PacketHandler.Instance.RegisterSender("AutoSwarm", transform);
+                Debug.LogWarning("[AutoSwarm] Packet communication enabled but not all drones have PacketReceiver. Falling back to direct access.");
+                usePacketCommunication = false;
+            }
+            else if (autoSwarmReceiver == null)
+            {
+                Debug.LogWarning("[AutoSwarm] Packet communication enabled but AutoSwarm doesn't have PacketReceiver. Adding one.");
+                autoSwarmReceiver = gameObject.AddComponent<PacketReceiver>();
+                autoSwarmReceiver.receiverId = "AutoSwarm";
+            }
+            
+            if (usePacketCommunication)
+            {
+                Debug.Log($"[AutoSwarm] Packet communication enabled. Receiver IDs: {packetReceiver1.receiverId}, {packetReceiver2.receiverId}, {packetReceiver3.receiverId}");
+                Debug.Log($"[AutoSwarm] AutoSwarm receiver ID: {autoSwarmReceiver.receiverId}");
             }
         }
 
@@ -523,8 +531,14 @@ public class AutoSwarm: MonoBehaviour
             return;
         }
 
-        Packet packet = new Packet("AutoSwarm", receiver.receiverId, messageType, data);
-        PacketHandler.Instance?.BroadcastPacket(packet);
+        if (autoSwarmReceiver != null)
+        {
+            autoSwarmReceiver.SendPacket(receiver.receiverId, messageType, data);
+        }
+        else
+        {
+            Debug.LogError("[AutoSwarm] AutoSwarm PacketReceiver is null! Cannot send packet.");
+        }
     }
 
     private void SendTargetPacket(PacketReceiver receiver, Transform target)

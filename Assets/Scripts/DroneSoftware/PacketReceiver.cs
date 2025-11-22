@@ -68,12 +68,6 @@ public class PacketReceiver : MonoBehaviour
     {
         if (packet.IsForRecipient(receiverId))
         {
-            if (packet.IsAck())
-            {
-                HandleAckPacket(packet);
-                return;
-            }
-
             if (enableDDoSSimulation && packetDropRate > 0f)
             {
                 if (Random.value < packetDropRate)
@@ -111,19 +105,6 @@ public class PacketReceiver : MonoBehaviour
         else if (logIgnoredPackets)
         {
             Debug.Log($"[{receiverId}] Ignored packet for: {packet.recipient}");
-        }
-    }
-
-    private void HandleAckPacket(Packet ackPacket)
-    {
-        if (PacketHandler.Instance != null)
-        {
-            PacketHandler.Instance.ReceiveAcknowledgment(ackPacket.ackForPacketId, ackPacket.sender);
-
-            if (logAcknowledgments)
-            {
-                Debug.Log($"[{receiverId}] Forwarded ACK from {ackPacket.sender} for packet {ackPacket.ackForPacketId}");
-            }
         }
     }
 

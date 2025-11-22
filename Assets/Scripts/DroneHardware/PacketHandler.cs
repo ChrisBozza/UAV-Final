@@ -17,8 +17,9 @@ public class PacketHandler : MonoBehaviour
     [Header("ACK System")]
     public bool enableAckSystem = true;
     public bool logAcknowledgments = false;
-    public float ackTimeout = 2.0f;
+    public float ackTimeout = 10.0f;
     public int maxRetries = 3;
+    public bool useDynamicTimeout = true;
 
     [Header("Statistics")]
     public int totalPacketsSent = 0;
@@ -119,8 +120,27 @@ public class PacketHandler : MonoBehaviour
             Debug.Log($"[PacketHandler] Broadcasting: {packet}");
         }
 
+        if (packet.IsAck())
+        {
+            float delay = CalculateTransmissionDelay(0f);
+            DelayedPacketDelivery delivery = new DelayedPacketDelivery(
+                packet,
+                null,
+                Time.time + delay,
+                0f
+            );
+            delayedPackets.Add(delivery);
+
+            if (logAcknowledgments)
+            {
+                Debug.Log($"[PacketHandler] Scheduled ACK delivery from {packet.sender} for packet {packet.ackForPacketId}");
+            }
+            return;
+        }
+
         Vector3 senderPosition = GetSenderPosition(packet.sender);
         List<string> receiversExpectingAck = new List<string>();
+        float maxDistance = 0f;
 
         foreach (PacketReceiver receiver in receivers)
         {
@@ -130,6 +150,12 @@ public class PacketHandler : MonoBehaviour
             {
                 Vector3 receiverPosition = receiver.transform.position;
                 float distance = Vector3.Distance(senderPosition, receiverPosition);
+                
+                if (distance > maxDistance)
+                {
+                    maxDistance = distance;
+                }
+
                 float delay = CalculateTransmissionDelay(distance);
 
                 if (visualizeTransmissions)
@@ -160,14 +186,29 @@ public class PacketHandler : MonoBehaviour
 
         if (enableAckSystem && packet.requiresAck && !packet.IsAck() && receiversExpectingAck.Count > 0)
         {
-            PacketAcknowledgment ackTracker = new PacketAcknowledgment(packet, receiversExpectingAck);
+            float calculatedTimeout = CalculateAckTimeout(maxDistance);
+            PacketAcknowledgment ackTracker = new PacketAcknowledgment(packet, receiversExpectingAck, calculatedTimeout, maxRetries);
             pendingAcks[packet.packetId] = ackTracker;
 
             if (logAcknowledgments)
             {
-                Debug.Log($"[PacketHandler] Waiting for ACKs from {receiversExpectingAck.Count} receivers for packet {packet.packetId}");
+                Debug.Log($"[PacketHandler] Waiting for ACKs from {receiversExpectingAck.Count} receivers for packet {packet.packetId} (timeout: {calculatedTimeout:F2}s, max dist: {maxDistance:F1}m)");
             }
         }
+    }
+
+    private float CalculateAckTimeout(float maxDistance)
+    {
+        if (!useDynamicTimeout || !useDistanceBasedDelay)
+        {
+            return ackTimeout;
+        }
+
+        float roundTripDelay = (maxDistance / propagationSpeed) * 2f;
+        float safetyMargin = 2f;
+        float calculatedTimeout = roundTripDelay + safetyMargin + signalDelay * 2f;
+
+        return Mathf.Max(ackTimeout, calculatedTimeout);
     }
 
     private float CalculateTransmissionDelay(float distance)
@@ -207,7 +248,12 @@ public class PacketHandler : MonoBehaviour
 
             if (Time.time >= delivery.deliveryTime)
             {
-                if (delivery.receiver != null)
+                if (delivery.packet.IsAck())
+                {
+                    ReceiveAcknowledgment(delivery.packet.ackForPacketId, delivery.packet.sender);
+                    totalPacketsDelivered++;
+                }
+                else if (delivery.receiver != null)
                 {
                     delivery.receiver.ReceivePacket(delivery.packet);
                     totalPacketsDelivered++;
