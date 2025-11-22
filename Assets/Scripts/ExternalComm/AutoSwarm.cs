@@ -139,6 +139,8 @@ public class AutoSwarm: MonoBehaviour
             
             CheckpointBehaviorHandler.CheckpointInfo checkpointInfo = behaviorHandler.AnalyzeCheckpoint(currentCheckpoint);
 
+            Debug.Log($"[AutoSwarm] Processing checkpoint {i}/{checkpoints.Length - 1}: {currentCheckpoint.name} (Type: {checkpointInfo.type})");
+
             switch (checkpointInfo.type)
             {
                 case CheckpointBehaviorHandler.CheckpointType.Takeoff:
@@ -154,6 +156,8 @@ public class AutoSwarm: MonoBehaviour
                     yield return HandleNormalCheckpoint(currentCheckpoint, nextCheckpoint);
                     break;
             }
+            
+            Debug.Log($"[AutoSwarm] Completed checkpoint {i}: {currentCheckpoint.name}");
         }
 
         yield return null;
@@ -427,6 +431,8 @@ public class AutoSwarm: MonoBehaviour
     {
         Transform[] formationTargets = formationGenerator.GenerateFormationTransforms(currentCheckpoint, nextCheckpoint);
         
+        ResetReachedTargetFlags();
+        
         if (usePacketCommunication)
         {
             SendTargetPacket(packetReceiver1, formationTargets[0]);
@@ -447,6 +453,8 @@ public class AutoSwarm: MonoBehaviour
 
     private void SetIndividualTargets(Transform target1, Transform target2, Transform target3)
     {
+        ResetReachedTargetFlags();
+        
         if (usePacketCommunication)
         {
             SendTargetPacket(packetReceiver1, target1);
@@ -463,6 +471,13 @@ public class AutoSwarm: MonoBehaviour
 
     private bool SwarmReachedTarget() {
         return droneComputer1.reachedTarget && droneComputer2.reachedTarget && droneComputer3.reachedTarget;
+    }
+
+    private void ResetReachedTargetFlags()
+    {
+        droneComputer1.reachedTarget = false;
+        droneComputer2.reachedTarget = false;
+        droneComputer3.reachedTarget = false;
     }
 
     private Vector3 GetAverageSwarmPosition()
