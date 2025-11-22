@@ -14,6 +14,8 @@ public class PacketReceiver : MonoBehaviour
     private FormationKeeper formationKeeper;
     private Queue<Packet> packetQueue = new Queue<Packet>();
 
+    private bool registered = false;
+
     void Awake()
     {
         droneComputer = GetComponent<DroneComputer>();
@@ -24,7 +26,25 @@ public class PacketReceiver : MonoBehaviour
             receiverId = gameObject.name;
         }
 
-        PacketHandler.Instance?.RegisterReceiver(this);
+        if (PacketHandler.Instance == null)
+        {
+            Debug.LogWarning($"[PacketReceiver {receiverId}] PacketHandler.Instance is null in Awake! Will try again in Start.");
+        }
+        else
+        {
+            PacketHandler.Instance.RegisterReceiver(this);
+            registered = true;
+        }
+    }
+
+    void Start()
+    {
+        if (!registered && PacketHandler.Instance != null)
+        {
+            Debug.Log($"[PacketReceiver {receiverId}] Registering in Start() as backup.");
+            PacketHandler.Instance.RegisterReceiver(this);
+            registered = true;
+        }
     }
 
     void OnDestroy()
@@ -67,12 +87,48 @@ public class PacketReceiver : MonoBehaviour
     {
         switch (packet.messageType)
         {
+            case "leader_state":
+                HandleLeaderState(packet);
+                break;
+
             case "formation_update":
                 HandleFormationUpdate(packet);
                 break;
 
+            case "formation_offset":
+                HandleFormationOffset(packet);
+                break;
+
+            case "formation_active":
+                HandleFormationActive(packet);
+                break;
+
             case "checkpoint_reached":
                 HandleCheckpointReached(packet);
+                break;
+
+            case "set_target":
+                HandleSetTarget(packet);
+                break;
+
+            case "set_autopilot":
+                HandleSetAutopilot(packet);
+                break;
+
+            case "power_on":
+                HandlePowerOn(packet);
+                break;
+
+            case "power_off":
+                HandlePowerOff(packet);
+                break;
+
+            case "set_speed_multiplier":
+                HandleSetSpeedMultiplier(packet);
+                break;
+
+            case "rotate_to_direction":
+                HandleRotateToDirection(packet);
                 break;
 
             case "slowdown_request":
@@ -90,6 +146,14 @@ public class PacketReceiver : MonoBehaviour
             default:
                 Debug.LogWarning($"[{receiverId}] Unknown packet type: {packet.messageType}");
                 break;
+        }
+    }
+
+    private void HandleLeaderState(Packet packet)
+    {
+        if (formationKeeper != null)
+        {
+            formationKeeper.OnLeaderStateReceived(packet.sender, packet.data);
         }
     }
 
@@ -132,6 +196,89 @@ public class PacketReceiver : MonoBehaviour
 
             SendPacket(packet.sender, "status_response", statusData);
         }
+    }
+
+    private void HandleFormationOffset(Packet packet)
+    {
+        if (formationKeeper != null)
+        {
+            Vector3 offset = ParseVector3(packet.data);
+            formationKeeper.SetFormationOffset(offset);
+        }
+    }
+
+    private void HandleFormationActive(Packet packet)
+    {
+        if (formationKeeper != null)
+        {
+            bool active = packet.data == "true";
+            formationKeeper.SetFormationActive(active);
+        }
+    }
+
+    private void HandleSetTarget(Packet packet)
+    {
+        if (droneComputer != null)
+        {
+            Vector3 targetPosition = ParseVector3(packet.data);
+            droneComputer.SetTargetPosition(targetPosition);
+        }
+    }
+
+    private void HandleSetAutopilot(Packet packet)
+    {
+        if (droneComputer != null)
+        {
+            bool autopilot = packet.data == "true";
+            droneComputer.autoPilot = autopilot;
+        }
+    }
+
+    private void HandlePowerOn(Packet packet)
+    {
+        if (droneComputer != null)
+        {
+            droneComputer.PowerOnEngine();
+        }
+    }
+
+    private void HandlePowerOff(Packet packet)
+    {
+        if (droneComputer != null)
+        {
+            droneComputer.PowerOffEngine();
+        }
+    }
+
+    private void HandleSetSpeedMultiplier(Packet packet)
+    {
+        if (droneComputer != null)
+        {
+            float multiplier = float.Parse(packet.data);
+            droneComputer.SetSpeedMultiplier(multiplier);
+        }
+    }
+
+    private void HandleRotateToDirection(Packet packet)
+    {
+        if (droneComputer != null)
+        {
+            Vector3 direction = ParseVector3(packet.data);
+            droneComputer.RotateTowardsDirection(direction);
+        }
+    }
+
+    private Vector3 ParseVector3(string vectorString)
+    {
+        string[] components = vectorString.Split(',');
+        if (components.Length >= 3)
+        {
+            float x = float.Parse(components[0]);
+            float y = float.Parse(components[1]);
+            float z = float.Parse(components[2]);
+            return new Vector3(x, y, z);
+        }
+        return Vector3.zero;
     }
 
     public void SendPacket(string recipient, string messageType, string data = "")

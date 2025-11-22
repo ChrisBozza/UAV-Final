@@ -31,9 +31,15 @@ public class AutoSwarm: MonoBehaviour
     [Header("Prediction System")]
     [SerializeField] DronePathPredictor pathPredictor;
 
+    [Header("Packet Communication")]
+    [SerializeField] bool usePacketCommunication = true;
+
     public bool swarmActive = true;
 
     private DroneComputer[] allDrones;
+    private PacketReceiver packetReceiver1;
+    private PacketReceiver packetReceiver2;
+    private PacketReceiver packetReceiver3;
 
     void Start()
     {
@@ -41,14 +47,26 @@ public class AutoSwarm: MonoBehaviour
         for (int i = 0; i < checkpointParent.transform.childCount; i++) {
             checkpoints[i] = checkpointParent.transform.GetChild(i).gameObject;
         }
-        // string line = string.Join(", ", checkpoints.Select(c => c.name));
-        // Debug.Log(line);
 
         droneComputer1 = drone1.GetComponent<DroneComputer>();
         droneComputer2 = drone2.GetComponent<DroneComputer>();
         droneComputer3 = drone3.GetComponent<DroneComputer>();
 
         allDrones = new DroneComputer[] { droneComputer1, droneComputer2, droneComputer3 };
+
+        packetReceiver1 = drone1.GetComponent<PacketReceiver>();
+        packetReceiver2 = drone2.GetComponent<PacketReceiver>();
+        packetReceiver3 = drone3.GetComponent<PacketReceiver>();
+
+        if (usePacketCommunication && (packetReceiver1 == null || packetReceiver2 == null || packetReceiver3 == null))
+        {
+            Debug.LogWarning("[AutoSwarm] Packet communication enabled but not all drones have PacketReceiver. Falling back to direct access.");
+            usePacketCommunication = false;
+        }
+        else if (usePacketCommunication)
+        {
+            Debug.Log($"[AutoSwarm] Packet communication enabled. Receiver IDs: {packetReceiver1.receiverId}, {packetReceiver2.receiverId}, {packetReceiver3.receiverId}");
+        }
 
         if (formationGenerator == null)
         {
@@ -62,6 +80,14 @@ public class AutoSwarm: MonoBehaviour
             behaviorHandler = gameObject.AddComponent<CheckpointBehaviorHandler>();
         }
 
+        StartCoroutine(DelayedMissionStart());
+    }
+
+    private IEnumerator DelayedMissionStart()
+    {
+        yield return new WaitForSeconds(0.1f);
+        
+        Debug.Log("[AutoSwarm] Starting mission...");
         StartCoroutine(MissionHandler());
     }
 
@@ -161,19 +187,44 @@ public class AutoSwarm: MonoBehaviour
         Vector3 leftWingOffset = new Vector3(formationWidth * 0.5f, 0f, formationDepth);
         Vector3 rightWingOffset = new Vector3(-formationWidth * 0.5f, 0f, formationDepth);
         
-        formationKeeper2.SetFormationOffset(leftWingOffset);
-        formationKeeper3.SetFormationOffset(rightWingOffset);
+        if (usePacketCommunication)
+        {
+            string offsetData2 = $"{leftWingOffset.x},{leftWingOffset.y},{leftWingOffset.z}";
+            string offsetData3 = $"{rightWingOffset.x},{rightWingOffset.y},{rightWingOffset.z}";
+            
+            SendPacketToDrone(packetReceiver2, "formation_offset", offsetData2);
+            SendPacketToDrone(packetReceiver3, "formation_offset", offsetData3);
+            
+            string activeData = enable ? "true" : "false";
+            SendPacketToDrone(packetReceiver1, "formation_active", activeData);
+            SendPacketToDrone(packetReceiver2, "formation_active", activeData);
+            SendPacketToDrone(packetReceiver3, "formation_active", activeData);
+        }
+        else
+        {
+            formationKeeper2.SetFormationOffset(leftWingOffset);
+            formationKeeper3.SetFormationOffset(rightWingOffset);
 
-        formationKeeper1.SetFormationActive(enable);
-        formationKeeper2.SetFormationActive(enable);
-        formationKeeper3.SetFormationActive(enable);
+            formationKeeper1.SetFormationActive(enable);
+            formationKeeper2.SetFormationActive(enable);
+            formationKeeper3.SetFormationActive(enable);
+        }
     }
 
     private void NotifyCheckpointReached()
     {
-        formationKeeper1.OnCheckpointReached();
-        formationKeeper2.OnCheckpointReached();
-        formationKeeper3.OnCheckpointReached();
+        if (usePacketCommunication)
+        {
+            SendPacketToDrone(packetReceiver1, "checkpoint_reached", "");
+            SendPacketToDrone(packetReceiver2, "checkpoint_reached", "");
+            SendPacketToDrone(packetReceiver3, "checkpoint_reached", "");
+        }
+        else
+        {
+            formationKeeper1.OnCheckpointReached();
+            formationKeeper2.OnCheckpointReached();
+            formationKeeper3.OnCheckpointReached();
+        }
     }
 
     private IEnumerator HandleTakeoff(CheckpointBehaviorHandler.CheckpointInfo checkpointInfo, Transform nextCheckpoint)
@@ -204,16 +255,34 @@ public class AutoSwarm: MonoBehaviour
             Vector3 directionToNext = (nextCheckpoint.position - GetAverageSwarmPosition()).normalized;
             Vector3 flatDirection = new Vector3(directionToNext.x, 0f, directionToNext.z).normalized;
 
-            float elapsedTime = 0f;
-            while (elapsedTime < stabilizationTime)
+            if (usePacketCommunication)
             {
-                foreach (DroneComputer drone in allDrones)
+                string directionData = $"{flatDirection.x},{flatDirection.y},{flatDirection.z}";
+                
+                float elapsedTime = 0f;
+                while (elapsedTime < stabilizationTime)
                 {
-                    drone.RotateTowardsDirection(flatDirection);
-                }
+                    SendPacketToDrone(packetReceiver1, "rotate_to_direction", directionData);
+                    SendPacketToDrone(packetReceiver2, "rotate_to_direction", directionData);
+                    SendPacketToDrone(packetReceiver3, "rotate_to_direction", directionData);
 
-                elapsedTime += Time.deltaTime;
-                yield return null;
+                    elapsedTime += Time.deltaTime;
+                    yield return null;
+                }
+            }
+            else
+            {
+                float elapsedTime = 0f;
+                while (elapsedTime < stabilizationTime)
+                {
+                    foreach (DroneComputer drone in allDrones)
+                    {
+                        drone.RotateTowardsDirection(flatDirection);
+                    }
+
+                    elapsedTime += Time.deltaTime;
+                    yield return null;
+                }
             }
         }
         else
@@ -299,38 +368,77 @@ public class AutoSwarm: MonoBehaviour
 
     private void PowerOffAllDrones()
     {
-        foreach (DroneComputer drone in allDrones)
+        if (usePacketCommunication)
         {
-            if (drone != null)
+            SendPacketToDrone(packetReceiver1, "power_off", "");
+            SendPacketToDrone(packetReceiver2, "power_off", "");
+            SendPacketToDrone(packetReceiver3, "power_off", "");
+        }
+        else
+        {
+            foreach (DroneComputer drone in allDrones)
             {
-                drone.PowerOffEngine();
+                if (drone != null)
+                {
+                    drone.PowerOffEngine();
+                }
             }
         }
     }
 
     private void PowerOnAllDrones()
     {
-        foreach (DroneComputer drone in allDrones)
+        if (usePacketCommunication)
         {
-            if (drone != null)
+            SendPacketToDrone(packetReceiver1, "power_on", "");
+            SendPacketToDrone(packetReceiver2, "power_on", "");
+            SendPacketToDrone(packetReceiver3, "power_on", "");
+        }
+        else
+        {
+            foreach (DroneComputer drone in allDrones)
             {
-                drone.PowerOnEngine();
+                if (drone != null)
+                {
+                    drone.PowerOnEngine();
+                }
             }
         }
     }
 
-    private void SetAutoPilot(bool status) {
-        droneComputer1.autoPilot = status;
-        droneComputer2.autoPilot = status;
-        droneComputer3.autoPilot = status;
+    private void SetAutoPilot(bool status)
+    {
+        if (usePacketCommunication)
+        {
+            string data = status ? "true" : "false";
+            SendPacketToDrone(packetReceiver1, "set_autopilot", data);
+            SendPacketToDrone(packetReceiver2, "set_autopilot", data);
+            SendPacketToDrone(packetReceiver3, "set_autopilot", data);
+        }
+        else
+        {
+            droneComputer1.autoPilot = status;
+            droneComputer2.autoPilot = status;
+            droneComputer3.autoPilot = status;
+        }
     }
 
-    private void SetNewSwarmTarget(Transform currentCheckpoint, Transform nextCheckpoint) {
+    private void SetNewSwarmTarget(Transform currentCheckpoint, Transform nextCheckpoint)
+    {
         Transform[] formationTargets = formationGenerator.GenerateFormationTransforms(currentCheckpoint, nextCheckpoint);
         
-        droneComputer1.SetTarget(formationTargets[0]);
-        droneComputer2.SetTarget(formationTargets[1]);
-        droneComputer3.SetTarget(formationTargets[2]);
+        if (usePacketCommunication)
+        {
+            SendTargetPacket(packetReceiver1, formationTargets[0]);
+            SendTargetPacket(packetReceiver2, formationTargets[1]);
+            SendTargetPacket(packetReceiver3, formationTargets[2]);
+        }
+        else
+        {
+            droneComputer1.SetTarget(formationTargets[0]);
+            droneComputer2.SetTarget(formationTargets[1]);
+            droneComputer3.SetTarget(formationTargets[2]);
+        }
         
         if (pathPredictor != null) {
             pathPredictor.UpdatePrediction(currentCheckpoint);
@@ -339,9 +447,18 @@ public class AutoSwarm: MonoBehaviour
 
     private void SetIndividualTargets(Transform target1, Transform target2, Transform target3)
     {
-        droneComputer1.SetTarget(target1);
-        droneComputer2.SetTarget(target2);
-        droneComputer3.SetTarget(target3);
+        if (usePacketCommunication)
+        {
+            SendTargetPacket(packetReceiver1, target1);
+            SendTargetPacket(packetReceiver2, target2);
+            SendTargetPacket(packetReceiver3, target3);
+        }
+        else
+        {
+            droneComputer1.SetTarget(target1);
+            droneComputer2.SetTarget(target2);
+            droneComputer3.SetTarget(target3);
+        }
     }
 
     private bool SwarmReachedTarget() {
@@ -358,13 +475,43 @@ public class AutoSwarm: MonoBehaviour
     {
         float speedMultiplier = enable ? 0.5f : 1f;
         
-        foreach (DroneComputer drone in allDrones)
+        if (usePacketCommunication)
         {
-            if (drone != null)
+            string data = speedMultiplier.ToString();
+            SendPacketToDrone(packetReceiver1, "set_speed_multiplier", data);
+            SendPacketToDrone(packetReceiver2, "set_speed_multiplier", data);
+            SendPacketToDrone(packetReceiver3, "set_speed_multiplier", data);
+        }
+        else
+        {
+            foreach (DroneComputer drone in allDrones)
             {
-                drone.SetSpeedMultiplier(speedMultiplier);
+                if (drone != null)
+                {
+                    drone.SetSpeedMultiplier(speedMultiplier);
+                }
             }
         }
+    }
+
+    private void SendPacketToDrone(PacketReceiver receiver, string messageType, string data)
+    {
+        if (receiver == null)
+        {
+            Debug.LogWarning($"[AutoSwarm] Cannot send packet - receiver is null");
+            return;
+        }
+
+        Packet packet = new Packet("AutoSwarm", receiver.receiverId, messageType, data);
+        PacketHandler.Instance?.BroadcastPacket(packet);
+    }
+
+    private void SendTargetPacket(PacketReceiver receiver, Transform target)
+    {
+        if (receiver == null || target == null) return;
+
+        string data = $"{target.position.x},{target.position.y},{target.position.z}";
+        SendPacketToDrone(receiver, "set_target", data);
     }
 
 }

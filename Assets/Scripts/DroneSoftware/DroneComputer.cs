@@ -10,6 +10,7 @@ public class DroneComputer : MonoBehaviour
     public bool reachedTarget = false;
     public float rotationSpeed = 90f;
     Transform target;
+    Vector3? targetPosition;
 
     [Header("Speed Control Settings")]
     public float minSpeedDistance = 2f;
@@ -47,8 +48,8 @@ public class DroneComputer : MonoBehaviour
         
         while (true) {
             yield return new WaitForSeconds(0.1f);
-            if (autoPilot && target != null) {
-                MoveTowardsPoint(target);
+            if (autoPilot && HasTarget()) {
+                MoveTowardsPoint();
             }
         }
     }
@@ -58,20 +59,22 @@ public class DroneComputer : MonoBehaviour
 
         while(true) {
             yield return null;
-            Vector3 toTarget = target.position - droneController.GetPosition();
-            float dist = toTarget.magnitude;
+            
+            if (HasTarget())
+            {
+                Vector3 toTarget = GetTargetPosition() - droneController.GetPosition();
+                float dist = toTarget.magnitude;
 
-
-            if (dist < 2f) {
-                reachedTarget = true;
+                if (dist < 2f) {
+                    reachedTarget = true;
+                }
             }
-
         }
     }
 
-    private void MoveTowardsPoint(Transform point) {
+    private void MoveTowardsPoint() {
 
-        Vector3 toTarget = target.position - droneController.GetPosition();
+        Vector3 toTarget = GetTargetPosition() - droneController.GetPosition();
         float distanceToTarget = toTarget.magnitude;
         Vector3 dir = toTarget.normalized;
         Vector3 current = droneController.GetMomentum();
@@ -154,16 +157,38 @@ public class DroneComputer : MonoBehaviour
     public void SetTarget(Transform t) {
         reachedTarget = false;
         target = t;
+        targetPosition = null;
+    }
+
+    public void SetTargetPosition(Vector3 position)
+    {
+        reachedTarget = false;
+        target = null;
+        targetPosition = position;
     }
 
     public Transform GetCurrentTarget() {
         return target;
     }
     
+    private bool HasTarget()
+    {
+        return target != null || targetPosition.HasValue;
+    }
+    
+    private Vector3 GetTargetPosition()
+    {
+        if (target != null)
+            return target.position;
+        if (targetPosition.HasValue)
+            return targetPosition.Value;
+        return droneController.GetPosition();
+    }
+    
     public Vector3 GetTargetDirection()
     {
-        if (target == null) return transform.forward;
-        Vector3 toTarget = target.position - GetPosition();
+        if (!HasTarget()) return transform.forward;
+        Vector3 toTarget = GetTargetPosition() - GetPosition();
         Vector3 horizontalDirection = new Vector3(toTarget.x, 0f, toTarget.z);
         return horizontalDirection.magnitude > 0.01f ? horizontalDirection.normalized : transform.forward;
     }
