@@ -103,10 +103,6 @@ public class PacketReceiver : MonoBehaviour
                 HandleFormationActive(packet);
                 break;
 
-            case "checkpoint_reached":
-                HandleCheckpointReached(packet);
-                break;
-
             case "set_target":
                 HandleSetTarget(packet);
                 break;
@@ -162,14 +158,6 @@ public class PacketReceiver : MonoBehaviour
         if (formationKeeper != null)
         {
             Debug.Log($"[{receiverId}] Formation update received from {packet.sender}");
-        }
-    }
-
-    private void HandleCheckpointReached(Packet packet)
-    {
-        if (formationKeeper != null)
-        {
-            formationKeeper.OnCheckpointReached();
         }
     }
 
